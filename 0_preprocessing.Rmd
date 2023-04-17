@@ -1,0 +1,204 @@
+---
+title: "Pre-processing and creating analysis objects"
+author: "Ravi Dandekar"
+date: "4/6/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Pre-Processing 
+* process 10x results
+* format analysis objects
+* This section is OPTIONAL
+
+# ---
+
+## Load Libraries
+```{r,echo=FALSE,warning=FALSE}
+# Set Working Directory before starting
+
+# Immcantation
+library(alakazam)
+library(shazam)
+library(tigger)
+library(dowser)
+
+library(Seurat)
+library(DoubletFinder)
+library(SingleR)
+
+library(reshape2)
+library(kableExtra)
+library(devtools)
+library(data.table)
+library(Matrix)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)    # grid.arrange()
+library(cowplot)
+library(dplyr)
+library(impactSingleCellToolkit)
+
+# scRNA-Seq
+dataset_loc <- "data/gex"
+
+# Immcantation Results
+bcr_beta_fh  <- "data/results_immcantation/BCR_CSFPB_heavy_germ-pass.tsv"
+bcr_alpha_fh <- "data/results_immcantation/BCR_CSFPB_light_germ-pass.tsv"
+tcr_beta_fh  <- "data/results_immcantation/TCR_CSFPB_heavy_germ-pass.tsv"
+tcr_alpha_fh <- "data/results_immcantation/TCR_CSFPB_light_germ-pass.tsv"
+
+# Workshop specific functions
+source("resources/functions_workshop.R")
+```
+
+
+## Process scRNA-Seq data
+
+#### 1. Create combined gex matrix
+```{r}
+samples.vec   <- dir(dataset_loc)
+
+gex.matrix <- generateCombinedMatrix(dataset_loc, samples.vec,THREADS = 8,multi.results = F,
+                                     assay = "gex",min.genes.per.cell = 700,max.genes.per.cell = 2500)
+```
+
+
+#### 2. Create Seurat Object
+```{r}
+# Create Seurat object
+seurat.obj <- createSeuratObjectFromMatrix(
+  sc.data      = gex.matrix,
+  project.name = "GEX",
+  npca         = 20, min.genes = 700,
+  normalize = F, dim.reduction = F
+)
+
+# Add samples column
+cells      <- row.names(seurat.obj@meta.data)
+sample_col <- cells
+sample_col <- tstrsplit(sample_col,"-")[[2]]
+seurat.obj@meta.data$sample <- sample_col
+```
+
+#### 3. Identify Doublets
+
+Needed to have the following CRAN packages updated:
+  * dotCall64
+  * spam
+  * fields
+```{r}
+seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
+```
+
+
+#### 4. Omit doublets and re-cluster
+
+* optimal PCs = 13
+```{r}
+# Omit Doublets 
+cells_to_keep  <- names(seurat.obj$doublet_finder[seurat.obj$doublet_finder %in% "Singlet"])
+seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
+
+# Re-cluster
+seurat.obj   <- scaleAndClusterSeuratObject(seurat.obj,dims = 1:30,npca = 10,tsne = T)
+pc_elbowplot <- plotOptimalPCsforSeuratObject(seurat.obj)
+```
+
+#### 5. Cell Type annotation
+```{r}
+# Generate SingleR Results
+singler_results_list <- runSingleRcelltypeAnnot(seurat.obj,blueprintencode.annot = T,monaco.annot = T)
+
+# Add celltype annotations back into Seurat Object
+seurat.obj <- addSingleRcelltypeAnnotToSeuratObject(seurat.obj,singler_results_list)
+```
+
+##### --plots
+```{r}
+hp1 <- plotScoreHeatmap(singler_results_list$main_bencode)
+hp2 <- plotScoreHeatmap(singler_results_list$main_monaco)
+
+hp3 <- plotScoreHeatmap(singler_results_list$fine_bencode)
+hp4 <- plotScoreHeatmap(singler_results_list$fine_monaco)
+
+hp3
+hp4
+```
+
+
+#### 6. QC filtering
+
+Omit cells with a high % mitochondrial trancripts as well as cells with high expression of Platelet genes (PPBP and PF4)
+
+##### a. omit cells with a high % mitochondrial genes
+```{r}
+seurat.obj <- subset(seurat.obj, subset = percent.mito < 10)
+
+# Look at Variable genes
+data <- FindVariableFeatures(seurat.obj, selection.method = "vst", nfeatures = 2000)
+top10 <- head(VariableFeatures(data), 10)
+plot1 <- VariableFeaturePlot(data)
+LabelPoints(plot = plot1, points = top10, repel = T)
+
+
+```
+
+##### b. omit clusters dominated by platelet genes
+
+* While preparing the workshop, cluster 13 & 23 were omitted in this section
+
+```{r}
+GENE_PANEL <- c("PPBP", "PF4")
+
+# Check Platelet genes
+vln_plot_pre <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log = T,ncol = 1)
+
+# Identify clusters with high expression of platelet genes
+avg_exp_per_clus <- AverageExpression(seurat.obj,features = GENE_PANEL,group.by = "seurat_clusters",assays = "SCT")
+avg_exp_per_clus <- avg_exp_per_clus$SCT %>% t() %>% as.data.frame()
+avg_exp_per_clus$sum_exp_zscore <- rowSums(avg_exp_per_clus)
+avg_exp_per_clus$sum_exp_zscore <- scale(avg_exp_per_clus$sum_exp_zscore)
+
+# Omit clusters (there were two clusters omitted)
+clusters_to_omit <- row.names(avg_exp_per_clus[avg_exp_per_clus$sum_exp_zscore > 0.8,])
+
+cells_to_keep  <- names(seurat.obj$seurat_clusters[! seurat.obj$seurat_clusters %in% clusters_to_omit])
+seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
+
+# Check Violin plots after removing clusters
+vln_plot_post <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log = T,ncol = 1)
+```
+
+
+
+# ---
+
+## Process VDJ results
+
+
+
+
+# ---
+
+# SAVE TEMP
+
+### pre doublet finder
+```{r}
+save(seurat.obj,file = "objects/seurat.obj.TEMP.RData")
+```
+
+### processed results
+```{r}
+save(seurat.obj,file = "objects/seurat.obj.processed.RData")
+```
+
+### SingleR results
+```{r}
+save(singler_results_list,file = "objects/singleR_celltype_annotations.RData")
+```
+
+
