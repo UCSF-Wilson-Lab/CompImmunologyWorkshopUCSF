@@ -1,0 +1,37 @@
+# DOCKER NOTES - IMMCANTATION
+
+### Basic docker commands ###
+docker container ls --all # lists all available containers 
+docker rm [NAME] # remove a container based on the 'NAME' as listed in the docker ls command
+#############################
+
+### 0. Change directory to data folder
+cd data/
+
+### 1. Download immcantation 4.3.0 from dockerhub (only need to pull this version once)
+docker pull immcantation/suite:4.3.0
+
+### 2. Create Docker container with specific name (then exit it)
+docker run --name WORKSHOP -it immcantation/suite:4.3.0 bash
+exit
+
+### 3. Copy input data and script into docker
+tar -zcvf input_immcantation.tar.gz input_immcantation/
+docker cp input_immcantation.tar.gz WORKSHOP:/data/input_immcantation.tar.gz
+docker cp ../0_workshop_prep/2_run_workshop_immcantation_v4.3.0.bash WORKSHOP:/data/2_run_workshop_immcantation_v4.3.0.bash
+
+### 4. Re-enter WORKSHOP docker env and run bash script
+docker start -ai WORKSHOP
+cd /data/
+tar -zxvf input_from_cellranger.tar.gz
+
+### 5. Run workshop shell script (will create a results directory)
+./2_run_workshop_immcantation_v4.3.0.bash
+
+
+### 6. Compress and copy back to your computer
+tar -zcvf results_immcantation.tar.gz results_immcantation/
+exit
+docker cp WORKSHOP:/data/results_immcantation.tar.gz ./results_immcantation.tar.gz
+tar -zxvf results_immcantation.tar.gz
+

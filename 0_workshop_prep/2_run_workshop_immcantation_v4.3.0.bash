@@ -4,7 +4,13 @@
 #  - there are two BCR and TCR samples
 #  - Immcantation v4.3.0 supports the analysis of these data (v4.4.0 had issues with BLASTP)
 
-# 1. Make sure data exists within container
+# Immcantation Documentation:
+# https://immcantation.readthedocs.io/en/stable/
+
+# Install container on your computer:
+# docker pull immcantation/suite:4.3.0
+
+# 1. Make sure data exists within container (use 'exit' command to exit container):
 # docker run --name WORKSHOP -it immcantation/suite:4.3.0 bash 
 
 # Arguments
