@@ -1,0 +1,49 @@
+---
+title: "Create Input for Immcantation"
+author: "Ravi Dandekar"
+date: "4/5/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Goal to create input files for Immcantation
+  * Set working directory to the folder containing this code
+
+# INPUT
+```{r}
+library(data.table)
+library(stringr)
+library(dplyr)
+library(Biostrings) # for FASTAs
+library(impactSingleCellToolkit)
+```
+
+
+```{r}
+bcr_results_dir <- "/data/rdandekar/rprojects/BMS_Workshops/2023_BMS_Comp_Immunology_Workshop/data/bcr"
+tcr_results_dir <- "/data/rdandekar/rprojects/BMS_Workshops/2023_BMS_Comp_Immunology_Workshop/data/tcr"
+results_dir     <- "/data/rdandekar/rprojects/BMS_Workshops/2023_BMS_Comp_Immunology_Workshop/data/input_immcantation"
+```
+
+
+# 1. BCR input
+```{r}
+generateInputFilesImmcantation(vdj.results.dir = bcr_results_dir,
+                               contig.annotation.file = "filtered_contig_annotations.csv",
+                               contig.fasta.file = "filtered_contig.fasta",
+                               output.file.prefix = "input_bcr",
+                               output.dir = results_dir)
+```
+
+# 2. TCR input
+```{r}
+generateInputFilesImmcantation(vdj.results.dir = tcr_results_dir,
+                               contig.annotation.file = "filtered_contig_annotations.csv",
+                               contig.fasta.file = "filtered_contig.fasta",
+                               output.file.prefix = "input_tcr",
+                               output.dir = results_dir)
+```
