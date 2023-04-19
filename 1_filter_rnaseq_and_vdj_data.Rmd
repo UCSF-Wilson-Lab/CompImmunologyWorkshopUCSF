@@ -1,0 +1,51 @@
+---
+title: "Filter scRNA-Seq and VDJ data"
+author: "Ravi Dandekar"
+date: "4/19/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+GOAL: annotate cell types and define expanded clonotypes (B cells and T cells)
+
+* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
+  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+
+```{r,echo=FALSE,warning=FALSE}
+# Set Working Directory before starting
+
+# Immcantation
+library(alakazam)
+library(shazam)
+library(tigger)
+library(dowser)
+
+library(Seurat)
+library(dittoSeq)
+library(reshape2)
+library(kableExtra)
+library(devtools)
+library(data.table)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)    # grid.arrange()
+library(cowplot)
+library(dplyr)
+
+source("resources/functions_workshop.R")
+```
+
+
+# 1. Load RNA-Seq object
+
+At this stage of the analysis scRNA-Seq, BCR and TCR repertoire datasets have been processed and overlapped
+* Doublet were removed computationally using 'DoubletFinder'
+* cells with more than 10% mitochondrial gene expression were omitted
+* Only B cells and T cells exist in this object
+
+```{r}
+rnaseq_obj <- readRDS("objects/seurat.obj.processed.rds")
+```

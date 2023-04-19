@@ -14,7 +14,6 @@ knitr::opts_chunk$set(echo = TRUE)
 * format analysis objects
 * This section is OPTIONAL
 
-# ---
 
 ## Load Libraries
 ```{r,echo=FALSE,warning=FALSE}
@@ -175,30 +174,17 @@ vln_plot_post <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log
 
 
 
-# ---
 
-## Process VDJ results
-
-
-
-
-# ---
-
-# SAVE TEMP
-
-### pre doublet finder
-```{r}
-save(seurat.obj,file = "objects/seurat.obj.TEMP.RData")
-```
+# SAVE Objects
 
 ### processed results
 ```{r}
-save(seurat.obj,file = "objects/seurat.obj.processed.RData")
+saveRDS(seurat.obj,file = "objects/seurat.obj.processed.rds")
 ```
 
 ### SingleR results
 ```{r}
-save(singler_results_list,file = "objects/singleR_celltype_annotations.RData")
+saveRDS(singler_results_list,file = "objects/singleR_celltype_annotations.rds")
 ```
 
 
