@@ -35,6 +35,12 @@ library(gridExtra)    # grid.arrange()
 library(cowplot)
 library(dplyr)
 
+# Immcantation Results
+bcr_heavy_fh <- "data/results_immcantation/BCR_CSFPB_heavy_germ-pass.tsv"
+bcr_light_fh <- "data/results_immcantation/BCR_CSFPB_light_germ-pass.tsv"
+tcr_beta_fh  <- "data/results_immcantation/TCR_CSFPB_heavy_germ-pass.tsv"
+tcr_alpha_fh <- "data/results_immcantation/TCR_CSFPB_light_germ-pass.tsv"
+
 source("resources/functions_workshop.R")
 ```
 
@@ -49,3 +55,27 @@ At this stage of the analysis scRNA-Seq, BCR and TCR repertoire datasets have be
 ```{r}
 rnaseq_obj <- readRDS("objects/seurat.obj.processed.rds")
 ```
+
+# 2. Load and format TCR/BCR repertoire results
+
+* Clonotype definitions for BCR are based on the Heavy chain only
+* Clonotype definitions for TCR include both Alpha and Beta chains
+
+### a. Load immcantations results
+```{r}
+# TCR
+db.tra   <- readChangeoDb(tcr_alpha_fh) %>% as.data.frame()
+db.trb   <- readChangeoDb(tcr_beta_fh) %>% as.data.frame()
+# BCR
+db.heavy <- readChangeoDb(bcr_heavy_fh) %>% as.data.frame()
+db.light <- readChangeoDb(bcr_light_fh) %>% as.data.frame()
+```
+
+### b. filter contigs and merge all chains
+* All contigs are in frame
+```{r}
+bcr_df <- mergeVDJresults(db.heavy,db.light,umi.thresh = 3,assay = "bcr")
+tcr_df <- mergeVDJresults(db.trb,db.tra,umi.thresh = 2, assay = "tcr")
+```
+
+

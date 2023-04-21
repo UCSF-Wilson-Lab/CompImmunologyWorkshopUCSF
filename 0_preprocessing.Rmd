@@ -44,12 +44,6 @@ library(impactSingleCellToolkit)
 # scRNA-Seq
 dataset_loc <- "data/gex"
 
-# Immcantation Results
-bcr_beta_fh  <- "data/results_immcantation/BCR_CSFPB_heavy_germ-pass.tsv"
-bcr_alpha_fh <- "data/results_immcantation/BCR_CSFPB_light_germ-pass.tsv"
-tcr_beta_fh  <- "data/results_immcantation/TCR_CSFPB_heavy_germ-pass.tsv"
-tcr_alpha_fh <- "data/results_immcantation/TCR_CSFPB_light_germ-pass.tsv"
-
 # Workshop specific functions
 source("resources/functions_workshop.R")
 ```
@@ -174,8 +168,7 @@ vln_plot_post <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log
 
 
 
-
-# SAVE Objects
+## SAVE Objects
 
 ### processed results
 ```{r}
