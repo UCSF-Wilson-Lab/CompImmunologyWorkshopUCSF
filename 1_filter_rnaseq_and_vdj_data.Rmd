@@ -96,12 +96,13 @@ tcr_df$unique_cell_id <- formatUniqueIDcolum(tcr_df$unique_cell_id)
 
 ### a. get vector of overlapping cells
 ```{r}
-cells_rnaseq <- colnames(rnaseq_obj)
-cells_vdj    <- unique(c(bcr_df$unique_cell_id,
-                         tcr_df$unique_cell_id))
+cells_rnaseq      <- colnames(rnaseq_obj)
+cells_vdj         <- unique(c(bcr_df$unique_cell_id,
+                              tcr_df$unique_cell_id))
 overlapping_cells <- cells_rnaseq[cells_rnaseq %in% cells_vdj]
 ```
 
+### b. filter rnaseq and vdj data
 ```{r,fig.height=6,fig.width=11}
 # generate UMAP of cell type annotations pre-filtering
 p1_pre_filter <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
@@ -114,4 +115,20 @@ tcr_df         <- tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,]
 # post filter umap
 p2_post_filter <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
 plot_grid(p1_pre_filter,p2_post_filter,ncol = 2)
+```
+
+# 4. Re-cluster
+```{r,fig.height=6,fig.width=7}
+rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:5,npca = 5,resolution = 0.3,
+                                          normalize = F,dim.reduction = T)
+
+p3_reclustered <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
+```
+
+
+# SAVE Processed objects
+```{r}
+# 2022 command
+#save(rnaseq_obj,tcell_obj,bcell_obj,bcr_results,tcr_results,clone_counts_tcr,clone_counts_bcr,file = "objects/processed_objects.RData")
+save(rnaseq_obj,bcr_df,tcr_df,file = "objects/processed_objects.RData")
 ```
