@@ -118,13 +118,168 @@ plot_grid(p1_pre_filter,p2_post_filter,ncol = 2)
 ```
 
 # 4. Re-cluster
-```{r,fig.height=6,fig.width=7}
+```{r,fig.height=6,fig.width=14}
 rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:5,npca = 5,resolution = 0.3,
                                           normalize = F,dim.reduction = T)
 
 p3_reclustered <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
+p4_reclustered <- UMAPPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=0.3, label = T)
+
+plot_grid(p3_reclustered,p4_reclustered,ncol = 2)
 ```
 
+# ---------------
+
+# Manual Cell type annotation
+
+# 1. Look at the data
+
+### a. Add columns and look at UMAP plots
+```{r,fig.height=6,fig.width=17}
+# Add compartment column
+rnaseq_obj$compartment <- tstrsplit(rnaseq_obj$sample,"_")[[2]]
+rnaseq_obj$compartment <- str_replace_all(rnaseq_obj$compartment,"PBMC","PB")
+
+# Add patient status column
+rnaseq_obj$status      <- tstrsplit(rnaseq_obj$sample,"_")[[1]]
+rnaseq_obj$status[rnaseq_obj$status %in% "32"] <- "Healthy"
+rnaseq_obj$status[rnaseq_obj$status %in% "28"] <- "Disease"
+
+# loc 
+loc_cols       = c("CSF" = "blue", "PB" = "red")
+diagnosis_cols = c("Disease" = "purple","Healthy" = "orange")
+
+p1 <- UMAPPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=0.3, label = T)
+p2 <- UMAPPlot(object = rnaseq_obj, group.by="compartment", pt.size=0.3, label = F,cols = loc_cols)
+p3 <- UMAPPlot(object = rnaseq_obj, group.by="status", pt.size=0.3, label = F,cols = diagnosis_cols)
+
+plot_grid(p1,p2,p3,ncol = 3)
+```
+
+
+### b. feature/violin of canonical genes
+
+* PPBP = Platelets, which are noise
+```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+tcell_panel           <- c("CD3E","CD3D","CD3G","CD4","CD8A","CD8B")
+bcell_panel           <- c("MS4A1","CD79A","CD79B","CD19","IGHM","IGHA1")
+other_celltypes_panel <- c("CD14","LYZ","MS4A7","FCER1A","APOE","PPBP")
+```
+
+
+#### B cell gene panel
+```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+FeaturePlot(rnaseq_obj,features = bcell_panel,ncol = 3)
+```
+
+#### T cell gene panel
+```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+FeaturePlot(rnaseq_obj,features = tcell_panel,ncol = 3)
+```
+
+#### gene panel for other cell types
+
+* Should not see an defined clusters for other cells types since these data
+  should only contain B cells and T cells
+```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+FeaturePlot(rnaseq_obj,features = other_celltypes_panel,ncol = 3)
+```
+
+# 1. Add main cell types
+* While cell types can be annotated manually based on gene expression, The 10X VDJ results tell us with higher confidence which cells are B cells/T cells
+
+```{r,fig.height=6,fig.width= 12}
+main_annot <- names(rnaseq_obj$orig.ident)
+main_annot[main_annot %in% bcr_df$unique_cell_id] <- "B cells"
+main_annot[main_annot %in% tcr_df$unique_cell_id] <- "T cells"
+names(main_annot) <- names(rnaseq_obj$orig.ident)
+rnaseq_obj$main.celltype.annot <- main_annot
+
+p4 <- UMAPPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=0.3, label = T)
+p5 <- UMAPPlot(object = rnaseq_obj, group.by="main.celltype.annot", pt.size=0.3, label = T)
+
+plot_grid(p4,p5, ncol = 2)
+```
+
+# 2. Add in Subtype annotations
+
+### a. Violin of CD4/CD8 genes
+```{r,fig.height=8,fig.width= 12}
+subtype_annotations <- colnames(rnaseq_obj)
+
+Idents(rnaseq_obj) <- rnaseq_obj$seurat_clusters
+p6 <- VlnPlot(rnaseq_obj,features = c("CD4","CD8A","CD8B"),pt.size = 0,ncol = 1)
+
+plot_grid(p6,p4,ncol = 2,rel_heights = c(8,6),rel_widths = c(6,6))
+```
+
+### b. Define T cell subtypes based on CD8 gene expression & SingleR annotations
+```{r}
+# SingleR Encode annotatons
+singler_annot_df <- rnaseq_obj@meta.data[,c("sample","seurat_clusters","main_bencode","fine_bencode","main.celltype.annot")]
+
+# Not all SingleR predictions for CD8+ T cells express CD8
+CD8_pos_tcells           <- colnames(subset(rnaseq_obj, subset = CD8A > 0 | CD8B > 0))
+singler_annot_df$cd8_pos <- row.names(singler_annot_df)
+singler_annot_df$cd8_pos[singler_annot_df$cd8_pos %in% CD8_pos_tcells] <- "yes"
+singler_annot_df$cd8_pos[! singler_annot_df$cd8_pos %in% "yes"]        <- "no"
+
+
+# -----
+#tcell_subtype_annotation <- names(rnaseq_obj$main.celltype.annot[rnaseq_obj$main.celltype.annot %in% "T cells"])
+#CD8_pos_tcells <- tcell_subtype_annotation[tcell_subtype_annotation %in% CD8_pos_tcells]
+#CD4_tcells     <- tcell_subtype_annotation[! tcell_subtype_annotation %in% CD8_pos_tcells]
+
+# Incorporate these annotations
+#subtype_annotations[subtype_annotations %in% CD8_pos_tcells] <- "CD8 T cells"
+#subtype_annotations[subtype_annotations %in% CD4_tcells]     <- "CD4 T cells"
+```
+
+### c. Define B cell subtypes based on SingleR automated annotations
+
+* SingleR
+* Training Data ENCODE
+
+```{r, fig.height=4, fig.width=10,echo=FALSE,warning=FALSE}
+singler_annotations <- read.csv("resources/Bcell_subtype_annotations.SingleR.csv")
+
+for (subtype in unique(singler_annotations$subtype)) {
+  subtype_df    <- singler_annotations[singler_annotations$subtype %in% subtype,]
+  subtype_annotations[subtype_annotations %in% subtype_df$cell_barcode] <- subtype
+}
+rnaseq_obj$sub.celltype.annot <- subtype_annotations
+
+# Plot
+p7 <- dittoDimPlot(rnaseq_obj, "main.celltype.annot")
+p8 <- dittoDimPlot(rnaseq_obj, "sub.celltype.annot")
+
+grid.arrange(p7,p8,nrow=1)
+```
+
+
+# 3. Add cell type annotation to VDJ results
+```{r}
+# TCR 
+tcell_annotation_col<- rep("No Annot",length(tcr_results$CELL_BARCODES))
+names(tcell_annotation_col) <- tcr_results$CELL_BARCODES
+
+tcell_annotation_col[names(tcell_annotation_col) %in% CD4_tcells]     <- "CD4 T cells"
+tcell_annotation_col[names(tcell_annotation_col) %in% CD8_pos_tcells] <- "CD8 T cells"
+tcr_results$SUBTYPE_ANNOTATION                                        <- tcell_annotation_col
+
+# BCR
+bcell_annotation_col<- rep("No Annot",length(bcr_results$CELL_BARCODES))
+names(bcell_annotation_col) <- bcr_results$CELL_BARCODES
+
+for (subtype in unique(singler_annotations$subtype)) {
+  subtype_df    <- singler_annotations[singler_annotations$subtype %in% subtype,]
+  bcell_annotation_col[names(bcell_annotation_col) %in% subtype_df$cell_barcode] <- subtype
+}
+bcr_results$SUBTYPE_ANNOTATION <- bcell_annotation_col
+```
+
+
+# ---------------
 
 # SAVE Processed objects
 ```{r}
