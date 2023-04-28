@@ -215,20 +215,6 @@ plot_grid(p6,p4,ncol = 2,rel_heights = c(8,6),rel_widths = c(6,6))
 
 ### b. Define T cell subtypes based on CD8 gene expression & SingleR annotations
 
-#### --colors
-```{r}
-colors_main_bencode <- c("darkblue","darkgreen","purple","red","orange","grey")
-colors_main_bencode       = c("CD4+ T-cells" = "blue", 
-                              "CD8+ T-cells" = "darkgreen",
-                              "NK cells" = "purple",
-                              "B-cells" = "red",
-                              "Monocytes" = "orange",
-                              "Macrophages" = "darkgrey")
-diagnosis_cols = c("CD4 T cells" = "blue",
-                   "CD8 T cells" = "darkgreen",
-                   "B cells" = "red")
-```
-
 ```{r,fig.height=6,fig.width= 10}
 # SingleR Encode annotatons
 singler_annot_df <- rnaseq_obj@meta.data[,c("sample","seurat_clusters","main_bencode","fine_bencode","main.celltype.annot")]
@@ -262,25 +248,34 @@ p8 <- ggplot(summary_subtype, aes(x = seurat_clusters, y = count, fill = sub.cel
 plot_grid(p7,p8,ncol = 1,align = "v")
 ```
 
-### c. Define B cell subtypes based on SingleR automated annotations
-
+### c. Define B cell subtypes based on SingleR subtype annotations
 * SingleR
 * Training Data ENCODE
 
 ```{r, fig.height=4, fig.width=10,echo=FALSE,warning=FALSE}
-singler_annotations <- read.csv("resources/Bcell_subtype_annotations.SingleR.csv")
+singler_annot_df_bcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "B cells",]
+uni_bcell_subtypes   <- unique(singler_annot_df$fine_bencode)
+non_bcell_subtypes   <- uni_bcell_subtypes[! uni_bcell_subtypes %in% c("naive B-cells","Memory B-cells","Plasma cells")]
 
-for (subtype in unique(singler_annotations$subtype)) {
-  subtype_df    <- singler_annotations[singler_annotations$subtype %in% subtype,]
-  subtype_annotations[subtype_annotations %in% subtype_df$cell_barcode] <- subtype
+# For simplicity we will annotate non-B cell annotations as Naive B cells
+#  - Violin plots showed that these cells have virtually no IgG, IgA or V gene expression
+singler_annot_df_bcr$fine_bencode[singler_annot_df_bcr$fine_bencode %in% non_bcell_subtypes] <- "naive B-cells"
+
+# Add B cell subtype annotations into sub.celltype.annot column
+for (bsubtype in unique(singler_annot_df_bcr$fine_bencode)) {
+  subset_cells <- row.names(singler_annot_df_bcr[singler_annot_df_bcr$fine_bencode %in% bsubtype,])
+  singler_annot_df[row.names(singler_annot_df) %in% subset_cells,"sub.celltype.annot"] <- bsubtype
 }
-rnaseq_obj$sub.celltype.annot <- subtype_annotations
+
+
+# Add subtype annotations back into RNA-Seq object
+rnaseq_obj$sub.celltype.annot <- singler_annot_df$sub.celltype.annot
 
 # Plot
-p7 <- dittoDimPlot(rnaseq_obj, "main.celltype.annot")
-p8 <- dittoDimPlot(rnaseq_obj, "sub.celltype.annot")
+p9  <- dittoDimPlot(rnaseq_obj, "main.celltype.annot")
+p10 <- dittoDimPlot(rnaseq_obj, "sub.celltype.annot")
 
-grid.arrange(p7,p8,nrow=1)
+grid.arrange(p9,p10,nrow=1)
 ```
 
 
