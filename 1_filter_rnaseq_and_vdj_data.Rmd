@@ -117,7 +117,30 @@ p2_post_filter <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size
 plot_grid(p1_pre_filter,p2_post_filter,ncol = 2)
 ```
 
-# 4. Re-cluster
+# 4. Add columns to VDJ data
+```{r}
+# Add sample column
+tcr_df$sample <- tstrsplit(tcr_df$unique_cell_id,"-")[[2]]
+bcr_df$sample <- tstrsplit(bcr_df$unique_cell_id,"-")[[2]]
+
+# Add column for CSF/PB 
+tcr_df$COMPARTMENT <- tstrsplit(tcr_df$sample,"_")[[2]]
+bcr_df$COMPARTMENT <- tstrsplit(bcr_df$sample,"_")[[2]]
+tcr_df$COMPARTMENT <- str_replace_all(tcr_df$COMPARTMENT,"PBMC","PB")
+bcr_df$COMPARTMENT <- str_replace_all(bcr_df$COMPARTMENT,"PBMC","PB")
+
+# Add Status Disease/Healthy
+tcr_df$STATUS                          <- tstrsplit(tcr_df$sample,"_")[[1]]
+tcr_df$STATUS[tcr_df$STATUS %in% "32"] <- "Healthy"
+tcr_df$STATUS[tcr_df$STATUS %in% "28"] <- "Disease"
+bcr_df$STATUS                          <- tstrsplit(bcr_df$sample,"_")[[1]]
+bcr_df$STATUS[bcr_df$STATUS %in% "32"] <- "Healthy"
+bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
+
+```
+
+
+# 5. Re-cluster
 ```{r,fig.height=6,fig.width=14}
 rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:5,npca = 5,resolution = 0.3,
                                           normalize = F,dim.reduction = T)
@@ -282,22 +305,102 @@ grid.arrange(p9,p10,nrow=1)
 # 4. Add cell type annotation to VDJ results
 ```{r}
 # TCR 
-tcell_annotation_col<- rep("No Annot",length(tcr_results$CELL_BARCODES))
-names(tcell_annotation_col) <- tcr_results$CELL_BARCODES
+tcell_annotation_col        <- rep("No Annot",nrow(tcr_df))
+names(tcell_annotation_col) <- tcr_df$unique_cell_id
 
-tcell_annotation_col[names(tcell_annotation_col) %in% CD4_tcells]     <- "CD4 T cells"
-tcell_annotation_col[names(tcell_annotation_col) %in% CD8_pos_tcells] <- "CD8 T cells"
-tcr_results$SUBTYPE_ANNOTATION                                        <- tcell_annotation_col
+subtype_annotations_tcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "T cells",]
+for (subtype in unique(subtype_annotations_tcr$sub.celltype.annot)) {
+  subtype_cells <- row.names(subtype_annotations_tcr[subtype_annotations_tcr$sub.celltype.annot %in% subtype,])
+  tcell_annotation_col[names(tcell_annotation_col) %in% subtype_cells] <- subtype
+}
+tcr_df$SUBTYPE_ANNOTATION <- tcell_annotation_col
 
 # BCR
-bcell_annotation_col<- rep("No Annot",length(bcr_results$CELL_BARCODES))
-names(bcell_annotation_col) <- bcr_results$CELL_BARCODES
+bcell_annotation_col<- rep("No Annot",nrow(bcr_df))
+names(bcell_annotation_col) <- bcr_df$unique_cell_id
 
-for (subtype in unique(singler_annotations$subtype)) {
-  subtype_df    <- singler_annotations[singler_annotations$subtype %in% subtype,]
-  bcell_annotation_col[names(bcell_annotation_col) %in% subtype_df$cell_barcode] <- subtype
+subtype_annotations_bcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "B cells",]
+for (subtype in unique(subtype_annotations_bcr$sub.celltype.annot)) {
+  subtype_cells    <- row.names(subtype_annotations_bcr[subtype_annotations_bcr$sub.celltype.annot %in% subtype,])
+  bcell_annotation_col[names(bcell_annotation_col) %in% subtype_cells] <- subtype
 }
-bcr_results$SUBTYPE_ANNOTATION <- bcell_annotation_col
+bcr_df$SUBTYPE_ANNOTATION <- bcell_annotation_col
+```
+
+
+# 5. define expanded clonotypes
+* createCloneCountTable & addExpansionCategories are in functions_workshop.R
+
+### a. generate clone count data frames
+```{r}
+clone_counts_tcr <- createCloneCountTable(tcr_df)
+clone_counts_bcr <- createCloneCountTable(bcr_df)
+
+# Can identify expanded clonotypes in the CSF with a high CSF:PB ratio
+clone_count_subset <- clone_counts_tcr[clone_counts_tcr$cell_count > 1 & clone_counts_tcr$CSF_count > 1, ]
+```
+
+
+### b. create categories for clonal expansion
+Highly expanded - cell count > 5
+Moderate        - 1 < cells count < 5
+Non-expanded    - cell count = 1
+```{r}
+tcr_df <- addExpansionCategories(tcr_df,clone_counts_tcr)
+bcr_df <- addExpansionCategories(bcr_df,clone_counts_bcr)
+```
+
+### c. add expansion categories to scRNA-Seq object
+```{r}
+expansion_categ_col <- paste(colnames(rnaseq_obj),rnaseq_obj$main.celltype.annot)
+uni_expansion_categ <- unique(tcr_df$EXPANSION_CATEGORY)
+
+for (categ in unique(tcr_df$EXPANSION_CATEGORY)) {
+  cells_categ <- c()
+  cells_tcr <- tcr_df[tcr_df$EXPANSION_CATEGORY %in% categ,"unique_cell_id"]
+  cells_tcr <- unique(paste(cells_tcr,"T cells"))
+  cells_bcr <- bcr_df[bcr_df$EXPANSION_CATEGORY %in% categ,"unique_cell_id"]
+  cells_bcr <- unique(paste(cells_bcr,"B cells"))
+  
+  if(length(cells_tcr)> 0) {cells_categ <- c(cells_categ, cells_tcr)}
+  if(length(cells_bcr)> 0) {cells_categ <- c(cells_categ, cells_bcr)}
+  
+  expansion_categ_col[expansion_categ_col %in% cells_categ] <- categ
+}
+names(expansion_categ_col) <- colnames(rnaseq_obj)
+rnaseq_obj$expansion_category <- expansion_categ_col
+```
+
+
+# 6. Look at proportions
+
+### a. subset B cells
+```{r}
+# add column for Diagnosis + Subtype & Diagnois + Compartment
+rnaseq_obj$status.subtype     <- paste(rnaseq_obj$status,rnaseq_obj$sub.celltype.annot)
+rnaseq_obj$status.compartment <- paste(rnaseq_obj$status,rnaseq_obj$compartment)
+
+cells <- names(rnaseq_obj$main.celltype.annot[rnaseq_obj$main.celltype.annot %in% "B cells"])
+bcell_obj <- rnaseq_obj[,cells]
+cells <- names(rnaseq_obj$main.celltype.annot[rnaseq_obj$main.celltype.annot %in% "T cells"])
+tcell_obj <- rnaseq_obj[,cells]
+```
+
+### b. sample breakdown
+```{r,fig.height=6, fig.width=7,echo=FALSE,warning=FALSE}
+p11 <- dittoBarPlot(rnaseq_obj, "sub.celltype.annot", group.by = "status.compartment", main = "All cells",color.panel = dittoColors()[1:4])
+p12 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartment", main = "B cells",color.panel = dittoColors()[3:4])
+
+
+plot_grid(p11,p12,nrow=2,align = "v")
+```
+
+### c. clonotype expansion breakdown
+```{r,fig.height=6, fig.width=7,echo=FALSE,warning=FALSE}
+p11 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
+p12 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
+
+grid.arrange(p11,p12,nrow=2)
 ```
 
 
@@ -306,8 +409,7 @@ bcr_results$SUBTYPE_ANNOTATION <- bcell_annotation_col
 # SAVE Processed objects
 ```{r}
 # 2022 command
-#save(rnaseq_obj,tcell_obj,bcell_obj,bcr_results,tcr_results,clone_counts_tcr,clone_counts_bcr,file = "objects/processed_objects.RData")
-save(rnaseq_obj,bcr_df,tcr_df,file = "objects/processed_objects.RData")
+save(rnaseq_obj,tcell_obj,bcell_obj,bcr_df,tcr_df,clone_counts_tcr,clone_counts_bcr,file = "objects/processed_objects.RData")
 ```
 
 # SAVE ENV - Temporary

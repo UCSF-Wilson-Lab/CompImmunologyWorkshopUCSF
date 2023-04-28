@@ -13,7 +13,7 @@ library(ggrepel)
 # 1. Pre-Processing --------------------------------------
 
 # createCloneCountTable - input is immcantation results
-createCloneCountTable <- function(results) {
+createCloneCountTable <- function(results,cellbarcode_col = "unique_cell_id") {
   clonotype_list          <- unique(results$clone_id)
   
   # Initialize Clonotype count table
@@ -26,13 +26,13 @@ createCloneCountTable <- function(results) {
   results_csf <- results[results$COMPARTMENT %in% "CSF",]
   results_pb  <- results[results$COMPARTMENT %in% "PB",]
   
-  total_cells       <- length(unique(results$CELL_BARCODES))
-  total_cells_csf   <- length(unique(results$CELL_BARCODES)) 
-  total_cells_pb    <- length(unique(results$CELL_BARCODES)) 
+  total_cells       <- length(unique(results[,cellbarcode_col]))
+  total_cells_csf   <- length(unique(results[,cellbarcode_col])) 
+  total_cells_pb    <- length(unique(results[,cellbarcode_col])) 
   
   for(clone in clonotype_list){
     clone_df         <- results[results$clone_id %in% clone,]
-    clone_cell_count <- length(unique(clone_df$CELL_BARCODES))
+    clone_cell_count <- length(unique(clone_df[,cellbarcode_col]))
     
     # Determine CSF and PB count
     clone_csf_count <- 0
@@ -41,10 +41,10 @@ createCloneCountTable <- function(results) {
     clone_df_pb  <- clone_df[clone_df$COMPARTMENT %in% "PB",]
     
     if(nrow(clone_df_csf) > 0){
-      clone_csf_count <- length(unique(clone_df_csf$CELL_BARCODES))
+      clone_csf_count <- length(unique(clone_df_csf[,cellbarcode_col]))
     }
     if (nrow(clone_df_pb) > 0){
-      clone_pb_count <- length(unique(clone_df_pb$CELL_BARCODES))
+      clone_pb_count <- length(unique(clone_df_pb[,cellbarcode_col]))
     }
     
     # Calulate percentage of total clones in the patient
