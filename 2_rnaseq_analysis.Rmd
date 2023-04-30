@@ -1,0 +1,260 @@
+---
+title: "RNA-Seq Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
+  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+
+```{r,warning=FALSE}
+# Set Working Directory before starting
+
+# Immcantation
+library(alakazam)
+library(shazam)
+library(tigger)
+
+library(Seurat)
+library(dittoSeq)
+library(reshape2)
+library(kableExtra)
+library(devtools)
+library(data.table)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)    # grid.arrange()
+library(cowplot)
+library(dplyr)
+
+source("resources/functions_workshop.R")
+```
+
+
+# 1. Load Processed Objects
+```{r}
+load("objects/processed_objects.RData")
+```
+
+
+# 2. Subset Disease Objects
+
+### a. subset B and T cells
+```{r}
+# T cell CSF object
+tcell_obj_csf <- tcell_obj[,names(tcell_obj$status[tcell_obj$status %in% "Disease"])]
+tcell_obj_csf <- tcell_obj_csf[,names(tcell_obj_csf$compartment[tcell_obj_csf$compartment %in% "CSF"])]
+tcell_obj_csf$expansion_category[tcell_obj_csf$expansion_category %in% c("High","Moderate")] <- "Expanded"
+tcell_obj_csf$expansion.subtype <- paste(tcell_obj_csf$expansion_category,tcell_obj_csf$sub.celltype.annot)
+
+
+# B cell object
+bcell_obj_csfpb <- bcell_obj
+bcell_obj_csfpb$expansion_category[bcell_obj_csfpb$expansion_category %in% c("High","Moderate")] <- "Expanded"
+bcell_obj_csfpb$expansion.subtype <- paste(bcell_obj_csfpb$expansion_category,bcell_obj_csfpb$sub.celltype.annot)
+```
+
+### b. B cell gene usage (heatmap)
+
+* With RNA-Seq alone, it is hard to separate out clonotypes
+
+#### V genes
+```{r,fig.height=7,fig.width=10}
+genes_bcells             <- row.names(bcell_obj_csfpb)
+vgenes_bcells            <- sort(genes_bcells[grep("IGHV",genes_bcells)])
+
+h1 <- dittoHeatmap(bcell_obj_csfpb, genes = vgenes_bcells,
+        annot.by = c("sub.celltype.annot","compartment","status"),
+        scaled.to.max = TRUE,
+        show_colnames = FALSE,
+        show_rownames = TRUE,
+        cluster_cols = TRUE,
+        main = "V gene usage B cells")
+
+```
+
+#### Other Ig genes
+```{r,fig.height=5,fig.width=10}
+genes_bcells             <- row.names(bcell_obj_csfpb)
+other_ig_genes_bcells    <- sort(genes_bcells[grep("IGHA|IGHG|IGHM|IGHD",genes_bcells)])
+
+h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
+        annot.by = c("sub.celltype.annot","compartment","status"),
+        scaled.to.max = TRUE,
+        show_colnames = FALSE,
+        show_rownames = TRUE,
+        cluster_cols = FALSE,
+        main = "Ig gene usage B cells")
+
+```
+
+
+
+# 3. Differential Gene Expression
+
+* If it slows down, pre-load DGE results for CSF vs. PB
+```{r}
+load("objects/csf_vs_pb_DGE.RData")
+```
+
+### a. CSF vs. PB
+```{r}
+TOP_N <- 100
+
+# Tcells
+Idents(tcell_obj) <- tcell_obj$compartment
+levels(tcell_obj) <- c("CSF","PB")
+
+dge_compartment_tcells_all <- FindAllMarkers(tcell_obj,logfc.threshold = 0.0,test.use = "wilcox")
+dge_compartment_tcells <- dge_compartment_tcells_all[dge_compartment_tcells_all$p_val_adj < 0.05,]
+top_genes_tcells       <- dge_compartment_tcells %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
+
+# B cells
+Idents(bcell_obj) <- bcell_obj$compartment
+levels(bcell_obj) <- c("CSF","PB")
+
+dge_compartment_bcells_all <- FindAllMarkers(bcell_obj,logfc.threshold = 0.0,test.use = "wilcox")
+dge_compartment_bcells <- dge_compartment_bcells_all[dge_compartment_bcells_all$p_val_adj < 0.05,]
+top_genes_bcells       <- dge_compartment_bcells %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
+```
+
+#### Heatmaps
+
+```{r,fig.height=6,fig.width=9}
+p1 <- dittoHeatmap(tcell_obj, genes = top_genes_tcells$gene,
+        annot.by = c("compartment","status", "sub.celltype.annot"),
+        scaled.to.max = TRUE,
+        show_colnames = FALSE,
+        show_rownames = FALSE,
+        cluster_cols = FALSE,
+        main = "CSF vs. PB T cells")
+```
+
+```{r,fig.height=6,fig.width=9}
+p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
+        annot.by = c("compartment","status", "sub.celltype.annot"),
+        scaled.to.max = TRUE,
+        show_colnames = FALSE,
+        show_rownames = FALSE,
+        cluster_cols = FALSE,
+        main = "CSF vs. PB B cells")
+```
+
+#### Volcano Plots
+
+```{r,fig.height=6,fig.width=9,warning=FALSE}
+v1 <- plotDGEvolcano(dge_compartment_bcells_all,LIMITS=c(0, 30),title = "B cell DGE CSF vs. PB",
+                     with_labels = TRUE,show_top_genes=20,cluster_filt = "CSF")
+v2 <- plotDGEvolcano(dge_compartment_tcells_all,LIMITS=c(0, 300),title = "T cell DGE CSF vs. PB",
+                     with_labels = TRUE,show_top_genes=20,cluster_filt = "CSF")
+
+plot_grid(v1,v2,nrow = 1)
+```
+
+
+### b. T cells Expanded vs. Non-expanded (CSF)
+```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
+TOP_N <- 12
+Idents(tcell_obj_csf) <- tcell_obj_csf$expansion.subtype
+levels(tcell_obj_csf) <- c("Expanded CD8 T cells","Non-expanded CD8 T cells","Expanded CD4 T cells","Non-expanded CD4 T cells")
+
+dge_tcell_csf   <- FindAllMarkers(tcell_obj_csf,logfc.threshold = 0.1,test.use = "wilcox")
+dge_tcell_csf   <- dge_tcell_csf[dge_tcell_csf$p_val_adj < 0.05,]
+top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
+
+DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
+```
+
+
+
+
+### c. B cells Expanded vs. Non-expanded (CSF and PB)
+```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
+TOP_N <- 10
+Idents(bcell_obj_csfpb) <- bcell_obj_csfpb$expansion.subtype
+levels(bcell_obj_csfpb) <- c("Expanded Plasma cells","Non-expanded Plasma cells","Expanded Memory B-cells","Non-expanded Memory B-cells","Expanded Naive B-cells","Non-expanded Naive B-cells")
+
+dge_bcell_csfpb   <- FindAllMarkers(bcell_obj_csfpb,logfc.threshold = 0.1,test.use = "wilcox")
+dge_bcell_csfpb   <- dge_bcell_csfpb[dge_bcell_csfpb$p_val_adj < 0.05,]
+top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
+
+DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF High vs. Non-Expanded") + coord_flip()
+```
+
+# 4. Pathway analysis
+
+```{r,echo=FALSE,warning=FALSE}
+library(ReactomePA)
+library(org.Hs.eg.db)
+library(igraph)
+library(enrichplot)
+library(ggnewscale)
+```
+
+### a. B cells PC
+```{r,fig.height=8, fig.width=11,echo=TRUE,warning=FALSE}
+target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Plasma cells","Non-expanded Plasma cells"),]
+
+# omiit Ribosomal genes (RP)
+rp_genes     <- target_genes$gene[grep("^RP",target_genes$gene)]
+target_genes <- target_genes[! target_genes$gene %in% rp_genes,]
+
+# Most of the expression should be in the target cluster
+# - pct.1 = proportion of expression of the gene within the target cluster group
+# - pct.2 = proportion of expression of the gene within everything outside the target cluster
+target_genes <- target_genes[target_genes$pct.1 > 0.5,]
+
+# Convert gene names to Entrez IDs
+de <- as.character(mapIds(org.Hs.eg.db, target_genes$gene,'ENTREZID','SYMBOL'))
+de <- de[!is.na(de)]
+
+# Pathway Enrichment
+bcell_pathways       <- enrichPathway(gene=de,pvalueCutoff=0.05, readable=T)
+bcell_pathways_df    <- as.data.frame(bcell_pathways)
+
+# Top enriched pathways and the gene count within each pathway
+barplot(bcell_pathways, showCategory = 9)
+```
+
+#### Network of genes shared between pathways
+```{r,fig.height=7, fig.width=11,echo=TRUE,warning=FALSE}
+bcell_pathways_net <- pairwise_termsim(bcell_pathways,showCategory = 9)
+emapplot(bcell_pathways_net, showCategory = 9)
+```
+
+### b. T cells PC
+```{r,fig.height=8, fig.width=11,echo=TRUE,warning=FALSE}
+target_genes <- dge_tcell_csf[dge_tcell_csf$cluster %in% c("Expanded CD8 T cells","Non-expanded CD8 T cells"),]
+
+# omiit Ribosomal genes (RP)
+rp_genes     <- target_genes$gene[grep("^RP",target_genes$gene)]
+target_genes <- target_genes[! target_genes$gene %in% rp_genes,]
+
+# Most of the expression should be in the target cluster
+target_genes <- target_genes[target_genes$pct.1 > 0.5,]
+
+# Convert gene names to Entrez IDs
+de <- as.character(mapIds(org.Hs.eg.db, target_genes$gene,'ENTREZID','SYMBOL'))
+de <- de[!is.na(de)]
+
+tcell_pathways <- enrichPathway(gene=de,pvalueCutoff=0.05, readable=T)
+tcell_pathways_df <- as.data.frame(tcell_pathways)
+
+barplot(tcell_pathways, showCategory=10)
+```
+
+#### Network of genes shared between pathways
+```{r,fig.height=7, fig.width=15,echo=TRUE,warning=FALSE}
+tcell_pathways_net <- pairwise_termsim(tcell_pathways,showCategory = 10)
+emapplot(tcell_pathways_net, showCategory = 10)
+```
+
+
+# SAVE ENV - Temporary
+```{r}
+save(list = ls(),file = "objects/TEMP_ENV.RData")
+```
