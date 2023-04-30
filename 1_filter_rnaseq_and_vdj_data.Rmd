@@ -42,6 +42,10 @@ bcr_light_fh <- "data/results_immcantation/BCR_CSFPB_light_germ-pass.tsv"
 tcr_beta_fh  <- "data/results_immcantation/TCR_CSFPB_heavy_germ-pass.tsv"
 tcr_alpha_fh <- "data/results_immcantation/TCR_CSFPB_light_germ-pass.tsv"
 
+# seed number
+seed.number <- 12345
+
+# Workshop specific functions
 source("resources/functions_workshop.R")
 ```
 
@@ -142,6 +146,7 @@ bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
 
 # 5. Re-cluster
 ```{r,fig.height=6,fig.width=14}
+set.seed(seed.number)
 rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:5,npca = 5,resolution = 0.3,
                                           normalize = F,dim.reduction = T)
 
