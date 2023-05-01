@@ -106,24 +106,22 @@ addExpansionCategories <- function(results,clone_count_df) {
 
 # 3. Analysis --------------------
 
-plotDGEvolcano <- function(results_dge, title = "Mov10 overexpression",LIMITS=c(-10, 300),pval_thresh=0.05,
-                           with_labels = FALSE,show_top_genes=10,cluster_filt = NULL) {
+plotDGEvolcano <- function(results_dge, YLIM = c(-10,300),title = "DGE",p.adj.thresh = 0.05,cluster_filt = NULL,
+                          with_gene_labels = TRUE,show_top_genes = 20) {
+  # filter results based on comparison
+  if(!is.null(cluster_filt)){results_dge <- results_dge[results_dge$cluster %in% cluster_filt,]}
   
-  # Add log10 P-adjusted-value column
+  # Annotate Significant vs. not significant
+  sig_genes <- results_dge$p_val_adj
+  sig_genes[sig_genes < p.adj.thresh] <- "Significant"
+  sig_genes[! sig_genes %in% "Significant"] <- "Not Significant"
+  results_dge$sig_genes <- sig_genes
+  
+  # Scale P-adj values
   results_dge$p_val_adj_log10 <- -log10(results_dge$p_val_adj)
   results_dge$p_val_adj_log10[results_dge$p_val_adj_log10 == Inf] <- -10
   
-  # Add annotation column for significant genes
-  sig_genes                                 <- results_dge$p_val_adj
-  sig_genes[sig_genes < pval_thresh]               <- "Significant"
-  sig_genes[! sig_genes %in% "Significant"] <- "Not Significant"
-  results_dge$sig_genes                     <- sig_genes
-  
-  # Subset top genes
-  results_dge_sort <- results_dge[order(results_dge$p_val_adj_log10,decreasing = T),]
-  if(!is.null(cluster_filt)){results_dge_sort <- results_dge_sort[results_dge_sort$cluster %in% cluster_filt,]}
-  results_dge_top  <- results_dge_sort[1:show_top_genes,]
-  
+  # Plot
   p <- ggplot(results_dge) +
     geom_point(aes(x=avg_log2FC, y=p_val_adj_log10, colour=sig_genes)) +
     scale_color_manual(values=c("black", "red")) + 
@@ -133,16 +131,20 @@ plotDGEvolcano <- function(results_dge, title = "Mov10 overexpression",LIMITS=c(
     theme(legend.position = "none",
           plot.title = element_text(size = rel(1.5), hjust = 0.5),
           axis.title = element_text(size = rel(1.25))) +
-    scale_y_continuous(limits = LIMITS) +
+    scale_y_continuous(limits = YLIM) +
     scale_x_continuous(limits = c(-1.2,1.2))
   
-  if (with_labels){
+  # Label top genes if specified
+  if(with_gene_labels){
+    # Subset top genes by p adj value
+    results_dge_sort <- results_dge[order(results_dge$p_val_adj_log10,decreasing = T),]
+    #if(!is.null(cluster_filt)){results_dge_sort <- results_dge_sort[results_dge_sort$cluster %in% cluster_filt,]}
+    results_dge_top  <- results_dge_sort[1:show_top_genes,]
     p <- p+geom_text_repel(data=results_dge_top, aes(label= gene,x=avg_log2FC, y=p_val_adj_log10))
   }
   
   return(p)
 }
-
 
 # 4. Network Analysis Functions --------------------
 

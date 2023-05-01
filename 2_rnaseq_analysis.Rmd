@@ -30,6 +30,7 @@ library(RColorBrewer)
 library(gridExtra)    # grid.arrange()
 library(cowplot)
 library(dplyr)
+library(impactSingleCellToolkit)
 
 source("resources/functions_workshop.R")
 ```
@@ -146,11 +147,11 @@ p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
 
 #### Volcano Plots
 
-```{r,fig.height=6,fig.width=9,warning=FALSE}
-v1 <- plotDGEvolcano(dge_compartment_bcells_all,LIMITS=c(0, 30),title = "B cell DGE CSF vs. PB",
-                     with_labels = TRUE,show_top_genes=20,cluster_filt = "CSF")
-v2 <- plotDGEvolcano(dge_compartment_tcells_all,LIMITS=c(0, 300),title = "T cell DGE CSF vs. PB",
-                     with_labels = TRUE,show_top_genes=20,cluster_filt = "CSF")
+```{r,fig.height=5,fig.width=9,warning=FALSE}
+v1 <- plotDGEvolcano(dge_compartment_bcells_all,YLIM = c(0,50),title = "B cell DGE CSF vs. PB",cluster_filt = "CSF",
+                    p.adj.thresh = 0.05,show_top_genes = 20)
+v2 <- plotDGEvolcano(dge_compartment_tcells_all,YLIM = c(0,250),title = "T cell DGE CSF vs. PB",cluster_filt = "CSF",
+                    p.adj.thresh = 0.05,show_top_genes = 20)
 
 plot_grid(v1,v2,nrow = 1)
 ```
