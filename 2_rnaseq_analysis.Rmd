@@ -177,7 +177,11 @@ DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + t
 ```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
 TOP_N <- 10
 Idents(bcell_obj_csfpb) <- bcell_obj_csfpb$expansion.subtype
-levels(bcell_obj_csfpb) <- c("Expanded Plasma cells","Non-expanded Plasma cells","Expanded Memory B-cells","Non-expanded Memory B-cells","Expanded Naive B-cells","Non-expanded Naive B-cells")
+complete_order          <- c("Expanded Plasma cells","Non-expanded Plasma cells",
+                             "Expanded Memory B-cells","Non-expanded Memory B-cells",
+                             "Expanded naive B-cells","Non-expanded naive B-cells")
+complete_order_sub <- complete_order[complete_order %in% unique(bcell_obj_csfpb$expansion.subtype)]
+levels(bcell_obj_csfpb) <- complete_order_sub
 
 dge_bcell_csfpb   <- FindAllMarkers(bcell_obj_csfpb,logfc.threshold = 0.1,test.use = "wilcox")
 dge_bcell_csfpb   <- dge_bcell_csfpb[dge_bcell_csfpb$p_val_adj < 0.05,]
@@ -194,41 +198,90 @@ library(org.Hs.eg.db)
 library(igraph)
 library(enrichplot)
 library(ggnewscale)
+
+library(DOSE)
+library(clusterProfiler)
+library(ggupset)
 ```
 
-### a. B cells PC
-```{r,fig.height=8, fig.width=11,echo=TRUE,warning=FALSE}
-target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Plasma cells","Non-expanded Plasma cells"),]
+### a. B cells Memory
+```{r,fig.height=6, fig.width=11,echo=TRUE,warning=FALSE}
+#target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Memory B-cells","Non-expanded Memory B-cells"),]
+target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Memory B-cells"),]
 
 # omiit Ribosomal genes (RP)
-rp_genes     <- target_genes$gene[grep("^RP",target_genes$gene)]
-target_genes <- target_genes[! target_genes$gene %in% rp_genes,]
+#rp_genes     <- target_genes$gene[grep("^RP",target_genes$gene)]
+#target_genes <- target_genes[! target_genes$gene %in% rp_genes,]
 
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
-target_genes <- target_genes[target_genes$pct.1 > 0.5,]
+#target_genes <- target_genes[target_genes$pct.1 > 0.5,]
 
 # Convert gene names to Entrez IDs
-de <- as.character(mapIds(org.Hs.eg.db, target_genes$gene,'ENTREZID','SYMBOL'))
-de <- de[!is.na(de)]
+de_genes <- mapIds(org.Hs.eg.db, target_genes$gene, 'ENTREZID', 'SYMBOL')
+de_genes <- de_genes[!is.na(de_genes)]
+de <- as.character(de_genes)
+
+# Create FC and P-adj-value vectors for enrihed genes
+de_fc_df <- target_genes[target_genes$gene %in% names(de_genes),]
+entrez_col <- c()
+for (g in names(de_genes)) {
+  egene <- as.character(de_genes[g])
+  entrez_col <- c(entrez_col,egene)
+}
+de_fc_df$entrez_id <- entrez_col
+
+de_fc_list        <- de_fc_df$avg_log2FC
+names(de_fc_list) <- de_fc_df$entrez_id
+
+# P-value vec
+de_pval_list        <- de_fc_df$p_val_adj
+names(de_pval_list) <- de_fc_df$entrez_id
 
 # Pathway Enrichment
 bcell_pathways       <- enrichPathway(gene=de,pvalueCutoff=0.05, readable=T)
 bcell_pathways_df    <- as.data.frame(bcell_pathways)
 
 # Top enriched pathways and the gene count within each pathway
-barplot(bcell_pathways, showCategory = 9)
+barplot(bcell_pathways, showCategory = 10)
 ```
 
 #### Network of genes shared between pathways
-```{r,fig.height=7, fig.width=11,echo=TRUE,warning=FALSE}
-bcell_pathways_net <- pairwise_termsim(bcell_pathways,showCategory = 9)
-emapplot(bcell_pathways_net, showCategory = 9)
+```{r,fig.height=6, fig.width=15,echo=TRUE,warning=FALSE}
+bcell_pathways_net <- pairwise_termsim(bcell_pathways,showCategory = 14)
+emapplot(bcell_pathways_net, showCategory = 14,
+         repel = T,cex_label_group = 0.5,layout = "star")
 ```
 
-### b. T cells PC
-```{r,fig.height=8, fig.width=11,echo=TRUE,warning=FALSE}
+
+
+#### Network of Pathways and genes
+```{r,fig.height=6,fig.width=15}
+edo <- enrichDGN(as.list(de))
+de_fc_list <- sort(de_fc_list,decreasing = T)
+
+## convert gene ID to Symbol
+edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+
+## Network categorySize can be scaled by 'pvalue' or 'geneNum' 
+p1 <- cnetplot(edox, categorySize="pvalue", foldChange=de_fc_list)
+
+## Heatmap
+p2 <- heatplot(edox, foldChange=de_fc_list, showCategory=9)
+
+plot_grid(p1,p2,ncol = 2)
+```
+
+#### Upset plot
+```{r,fig.height=5,fig.width=7}
+upset_plot <-upsetplot(edo)
+upset_plot
+```
+
+
+### b. T cells CD8
+```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
 target_genes <- dge_tcell_csf[dge_tcell_csf$cluster %in% c("Expanded CD8 T cells","Non-expanded CD8 T cells"),]
 
 # omiit Ribosomal genes (RP)
