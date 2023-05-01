@@ -1,7 +1,5 @@
 ---
 title: "Filter scRNA-Seq and VDJ data"
-author: "Ravi Dandekar"
-date: "4/19/2023"
 output: html_document
 ---
 

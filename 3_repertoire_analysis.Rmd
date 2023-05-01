@@ -1,0 +1,353 @@
+---
+title: "VDJ Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
+  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+
+```{r,echo=FALSE,warning=FALSE}
+# Set Working Directory before starting
+
+# Immcantation
+library(alakazam)
+library(shazam)
+library(tigger)
+library(dowser)
+
+library(Seurat)
+library(dittoSeq)
+library(reshape2)
+library(kableExtra)
+library(devtools)
+library(data.table)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)    # grid.arrange()
+library(cowplot)
+library(dplyr)
+library(ggpubr) # just added
+
+source("resources/functions_workshop.R")
+```
+
+
+# 1. Load Processed Objects
+```{r}
+load("objects/processed_objects.RData")
+
+# For B cells, IgSeq analyses are done on the Heavy chain only
+bcr_results_igh <- bcr_results[bcr_results$locus %in% "IGH",]
+```
+
+# Immcantation
+
+# 2. Rank diversity
+
+https://alakazam.readthedocs.io/en/stable/vignettes/Diversity-Vignette/
+
+### a. Rank Diversity CSF vs. PB
+```{r,fig.height=10, fig.width=11,echo=FALSE,warning=FALSE}
+comp_colors <- c("CSF"="blue", "PB"="tomato2")
+t_annot_colors <- c("CD4 T cells"="seagreen", "CD8 T cells"="steelblue")
+b_annot_colors <- c("Memory B-cells"="seagreen", "Naive B-cells"="steelblue","Plasma cells"="tomato2")
+
+# T cells
+rank_curve_loc  <- estimateAbundance(tcr_results, group="COMPARTMENT", ci=0.95, nboot=200)
+r1<-plot(rank_curve_loc,main_title="T cell Rank diversity CSF and PB",colors=comp_colors)
+
+rank_curve_annot  <- estimateAbundance(tcr_results, group="SUBTYPE_ANNOTATION", ci=0.95, nboot=200)
+r2<-plot(rank_curve_annot,main_title="Rank diversity T cell Annotation",color=t_annot_colors)
+
+# B cells
+rank_curve_loc  <- estimateAbundance(bcr_results_igh, group="COMPARTMENT", ci=0.95, nboot=200,min_n = 7)
+r3<-plot(rank_curve_loc,main_title="B cell Rank diversity CSF and PB",color=comp_colors)
+
+rank_curve_annot  <- estimateAbundance(bcr_results_igh, group="SUBTYPE_ANNOTATION", ci=0.95, nboot=200,min_n = 7)
+r4<-plot(rank_curve_annot,main_title="Rank diversity B cell Annotation",colors=b_annot_colors)
+
+
+# Plot both curves in the same plot
+plot_grid(r1,r2,r3,r4,ncol = 2)
+```
+
+### a. Disease vs. Healthy
+```{r,fig.height=10, fig.width=11,echo=FALSE,warning=FALSE}
+status_colors   <- c("Healthy"="seagreen", "Disease"="steelblue")
+b_status_colors <- c("Disease"="steelblue")
+
+tcr_results_csf     <- tcr_results[tcr_results$COMPARTMENT %in% "CSF",]
+bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
+
+rank_curve_annot  <- estimateAbundance(tcr_results, group="STATUS", ci=0.95, nboot=200)
+r5<-plot(rank_curve_annot,main_title="Rank diversity T cell Status",colors=status_colors)
+
+rank_curve_annot  <- estimateAbundance(bcr_results_igh, group="STATUS", ci=0.95, nboot=200,min_n = 8)
+r6<-plot(rank_curve_annot,main_title="Rank diversity B cell Status",colors=status_colors)
+
+rank_curve_annot  <- estimateAbundance(tcr_results_csf, group="STATUS", ci=0.95, nboot=200)
+r7<-plot(rank_curve_annot,main_title="Rank diversity T cell Status CSF",colors=status_colors)
+
+# Only Disease in this plot
+rank_curve_annot  <- estimateAbundance(bcr_results_igh_csf, group="STATUS", ci=0.95, nboot=200,min_n = 8)
+r8<-plot(rank_curve_annot,main_title="Rank diversity B cell Status CSF",colors=b_status_colors)
+
+# Plot both curves in the same plot
+plot_grid(r5,r6,r7,r8,ncol = 2)
+```
+
+
+
+
+
+# 3. V/J usage T cells
+```{r}
+vfamily <- countGenes(tcr_results_csf, gene="v_call", groups=c("SUBTYPE_ANNOTATION", "STATUS"), 
+                     clone="clone_id", mode="family")
+
+jfamily <- countGenes(tcr_results_csf, gene="j_call", groups=c("SUBTYPE_ANNOTATION", "STATUS"), 
+                     clone="clone_id", mode="family")
+head(vfamily, n=4)
+```
+
+```{r,fig.height=10, fig.width=15,echo=FALSE,warning=FALSE}
+g1 <- ggplot(vfamily, aes(x=gene, y=clone_freq)) +
+    theme_bw() +
+    ggtitle("Clonal V Usage T cells CSF") +
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+    ylab("Percent of repertoire") +
+    xlab("") +
+    scale_color_brewer(palette="Set1") +
+    geom_point(aes(color=STATUS), size=5, alpha=0.8) +
+    facet_grid(. ~ SUBTYPE_ANNOTATION)
+
+g2 <- ggplot(jfamily, aes(x=gene, y=clone_freq)) +
+    theme_bw() +
+    ggtitle("Clonal J Usage T cells CSF") +
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+    ylab("Percent of repertoire") +
+    xlab("") +
+    scale_color_brewer(palette="Set1") +
+    geom_point(aes(color=STATUS), size=5, alpha=0.8) +
+    facet_grid(. ~ SUBTYPE_ANNOTATION)
+
+plot_grid(g1,g2,nrow=2)
+```
+
+# 4. C usage B cells
+```{r}
+bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
+bcr_results_igh_pb  <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "PB",]
+
+cfamily_csf <- countGenes(bcr_results_igh_csf, gene="c_call", groups=c("SUBTYPE_ANNOTATION", "STATUS"), 
+                     clone="clone_id", mode="family")
+
+cfamily_pb <- countGenes(bcr_results_igh_pb, gene="c_call", groups=c("SUBTYPE_ANNOTATION", "STATUS"), 
+                     clone="clone_id", mode="family")
+head(cfamily_csf, n=4)
+```
+
+
+```{r,fig.height=10, fig.width=11,echo=TRUE,warning=FALSE}
+g1 <- ggplot(cfamily_csf, aes(x=gene, y=clone_freq)) +
+    theme_bw() +
+    ggtitle("Clonal Subtype B cells CSF") +
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+    ylab("Percent of repertoire") +
+    xlab("") +
+    scale_color_brewer(palette="Set1") +
+    geom_point(aes(color=STATUS), size=5, alpha=0.8) +
+    facet_grid(. ~ SUBTYPE_ANNOTATION)
+
+g2 <- ggplot(cfamily_pb, aes(x=gene, y=clone_freq)) +
+    theme_bw() +
+    ggtitle("Clonal Subtype B cells PB") +
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+    ylab("Percent of repertoire") +
+    xlab("") +
+    scale_color_brewer(palette="Set1") +
+    geom_point(aes(color=STATUS), size=5, alpha=0.8) +
+    facet_grid(. ~ SUBTYPE_ANNOTATION)
+
+plot_grid(g1,g2,nrow=2)
+```
+
+# 5. B cell Alpha Diversity 
+
+* Local species diversity (in this case, used for B & T cell populations)
+
+* Interpretation of X-axis diversity scores
+0    : species richness (R) (general diversity index)
+0->1 : Shannon Diversity => exponent of Shannon-Weiner index
+1->2 : Simpson Diversity => inverse of the Simpson index
+2->4 : inverse reciprocal of the largest clone, diversity of most abundant clone
+
+
+### a. generate diversity results for B cell isotypes (CSF vs. PB)
+```{r}
+bcr_results_igh_igm  <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHM",]
+bcr_results_igh_iga1 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHA1",]
+bcr_results_igh_iga2 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHA2",]
+bcr_results_igh_igg1 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHG1",]
+bcr_results_igh_igg2 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHG2",]
+bcr_results_igh_igg3 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHG3",]
+
+MIN_OBS <- 2
+NBOOT   <- 200
+
+a1_curve <- alphaDiversity(bcr_results_igh_igm, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a2_curve <- alphaDiversity(bcr_results_igh_iga1, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a3_curve <- alphaDiversity(bcr_results_igh_iga2, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a4_curve <- alphaDiversity(bcr_results_igh_igg1, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a5_curve <- alphaDiversity(bcr_results_igh_igg2, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a6_curve <- alphaDiversity(bcr_results_igh_igg3, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+
+table(bcr_results_igh$c_call)
+```
+
+### b. plot diversity curves
+```{r,fig.height=7,fig.width=10}
+comp_colors  <- c("CSF"="blue", "PB"="tomato2")
+comp_colors2 <- c("PB"="tomato2")
+
+a1<-plot(a1_curve,main_title="IgM alpha diversity",colors=comp_colors)
+a2<-plot(a2_curve,main_title="IgA1 alpha diversity",colors=comp_colors2)
+a3<-plot(a3_curve,main_title="IgA2 alpha diversity",colors=comp_colors2)
+a4<-plot(a4_curve, main_title="IgG1 alpha diversity",colors=comp_colors)
+a5<-plot(a5_curve, main_title="IgG2 alpha diversity",colors=comp_colors2)
+a6<-plot(a6_curve, main_title="IgG3 alpha diversity",colors=comp_colors2)
+
+plot_grid(a1,a2,a3,a4,a5,a6,nrow = 2)
+```
+
+# 6. T cell Alpha Diversity
+
+### a. generate diversity results for T cell subtypes(CSF vs. PB)
+```{r}
+tcr_results_d      <- tcr_results[tcr_results$STATUS %in% "Disease",]
+tcr_results_h      <- tcr_results[tcr_results$STATUS %in% "Healthy",]
+tcr_results_d_cd4  <- tcr_results_d[tcr_results_d$SUBTYPE_ANNOTATION %in% "CD4 T cells",]
+tcr_results_d_cd8  <- tcr_results_d[tcr_results_d$SUBTYPE_ANNOTATION %in% "CD8 T cells",]
+tcr_results_h_cd4  <- tcr_results_h[tcr_results_h$SUBTYPE_ANNOTATION %in% "CD4 T cells",]
+tcr_results_h_cd8  <- tcr_results_h[tcr_results_h$SUBTYPE_ANNOTATION %in% "CD8 T cells",]
+
+MIN_OBS <- 2
+NBOOT   <- 200
+
+a7_curve <- alphaDiversity(tcr_results_d_cd4, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a8_curve <- alphaDiversity(tcr_results_d_cd8, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a9_curve <- alphaDiversity(tcr_results_h_cd4, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+a10_curve <- alphaDiversity(tcr_results_h_cd8, group="COMPARTMENT",min_q=0, max_q=4, step_q=0.1,ci=0.95, nboot=NBOOT,min_n=MIN_OBS)
+```
+
+### b. plot diversity curves
+```{r,fig.height=7,fig.width=8}
+comp_colors  <- c("CSF"="blue", "PB"="tomato2")
+#comp_colors2 <- c("PB"="tomato2")
+
+a7<-plot(a7_curve,main_title="CD4 Disease alpha diversity",colors=comp_colors)
+a8<-plot(a8_curve,main_title="CD8 Disease alpha diversity",colors=comp_colors)
+a9<-plot(a9_curve,main_title="CD4 Healthy alpha diversity",colors=comp_colors)
+a10<-plot(a10_curve, main_title="CD8 Healthy alpha diversity",colors=comp_colors)
+
+plot_grid(a7,a8,a9,a10,nrow = 2)
+```
+
+
+# 7. Mutational Profile of B cells
+
+* Counts Replacement and Silent mutations across CDR and FWR regions
+* Can specify specific regions and type of mutation (R/S)
+* Further exploration: https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
+
+```{r}
+# Calculate combined R and S mutation frequencies
+bcr_csf_obs <- observedMutations(bcr_results_igh_csf, sequenceColumn="sequence_alignment",
+                            germlineColumn="germline_alignment_d_mask",
+                            regionDefinition=NULL,
+                            frequency=TRUE, 
+                            combine=TRUE,
+                            nproc=4)
+
+bcr_pb_obs <- observedMutations(bcr_results_igh_pb, sequenceColumn="sequence_alignment",
+                            germlineColumn="germline_alignment_d_mask",
+                            regionDefinition=NULL,
+                            frequency=TRUE, 
+                            combine=TRUE,
+                            nproc=4)
+```
+
+
+```{r,fig.height=10, fig.width=11,echo=TRUE,warning=FALSE}
+g1 <- ggplot(bcr_csf_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
+    theme_bw() + ggtitle("BCR CSF Total mutations") +
+    xlab("Isotype") + ylab("Mutation frequency") +
+    scale_fill_brewer(palette="OrRd") + 
+    geom_boxplot() + stat_compare_means(label = "p.signif", aes(group=c_call), hide.ns = TRUE)
+
+g2 <- ggplot(bcr_pb_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
+    theme_bw() + ggtitle("BCR PB Total mutations") +
+    xlab("Isotype") + ylab("Mutation frequency") +
+    scale_fill_brewer(palette="OrRd") + 
+    geom_boxplot() + stat_compare_means(label = "p.signif", aes(group=c_call), hide.ns = TRUE)
+grid.arrange(g1,g2,nrow=2)
+```
+
+# 8. Mutational hot spots Observed among all 5-mers - B cells
+
+* known 5-mer motifs observed in literature are highlighted in color (https://www.frontiersin.org/articles/10.3389/fimmu.2013.00358/full)
+    * WA/TW
+    * WRC/GYW
+    * SYC/GRS
+* https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
+
+### a. setup models
+```{r}
+bcr_results_igh_d <- bcr_results_igh[bcr_results_igh$STATUS %in% "Disease",]
+
+clone_db      <- collapseClones(bcr_results_igh_d, nproc=1)
+model_disease <- createTargetingModel(clone_db, model="rs", sequenceColumn="clonal_sequence", germlineColumn="clonal_germline")
+```
+
+### b. Plot Disease 
+```{r}
+m1 <- plotMutability(model_disease, nucleotides="A", style="hedgehog")
+m2 <- plotMutability(model_disease, nucleotides="C", style="hedgehog")
+m3 <- plotMutability(model_disease, nucleotides="G", style="hedgehog")
+m4 <- plotMutability(model_disease, nucleotides="T", style="hedgehog")
+```
+
+
+
+# 5. Trees - B cells 
+
+* Dowser
+https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
+
+## Dowser 
+
+### a. format clones
+```{r}
+# No BCR clones of sufficient size for making trees with dowser
+input_trees            <- bcr_results
+input_trees$subject_id <- tstrsplit(input_trees$SAMPLE,"_")[[1]]
+clones                 <-  formatClones(input_trees,minseq = 2)
+
+# Follow tutorial instead
+data(ExampleClones) # sample dataset
+ExampleClones_m <- scaleBranches(ExampleClones, edge_type="mutations")
+clones          <- ExampleClones_m[1:2,]
+
+print(clones)
+```
+
+### b. build tree
+```{r}
+plots = plotTrees(ExampleClones, tips="c_call")
+
+plots[[1]]
+```
