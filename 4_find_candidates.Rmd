@@ -1,0 +1,353 @@
+---
+title: "Identify mAb/mTCR Candidates and Perform Network Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
+  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+
+
+```{r,warning=FALSE}
+# Set Working Directory before starting
+
+# Immcantation
+library(alakazam)
+library(shazam)
+library(tigger)
+library(dowser)
+
+library(Seurat)
+library(dittoSeq)
+library(reshape2)
+library(kableExtra)
+library(devtools)
+library(data.table)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)    # grid.arrange()
+library(dplyr)
+
+source("resources/functions_workshop.R")
+```
+
+
+# 1. Load Processed Objects
+```{r}
+load("objects/processed_objects.RData")
+```
+
+# 2. Dot plot of clonotypes
+
+* Search for Disease Relevant Clonotypes (Thresholds based on prior analysis)
+    * CSF_PB_RATIO_THRESH > 2
+    * PB_count <= 1
+
+```{r}
+# Add column of CSF expanded/Other
+CSF_PB_RATIO_THRESH = 2
+
+# TCR
+csf_high <- clone_counts_tcr[clone_counts_tcr$PB_count <= 1 & clone_counts_tcr$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
+csf_high_clonotypes <- row.names(csf_high)
+
+exp_category <- row.names(clone_counts_tcr)
+exp_category[exp_category %in% csf_high_clonotypes]   <- "CSF_high_expanded"
+exp_category[! exp_category %in% "CSF_high_expanded"] <- "Other"
+clone_counts_tcr$exp_category <- exp_category
+
+# BCR
+csf_high <- clone_counts_bcr[clone_counts_bcr$PB_count <= 1 & clone_counts_bcr$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
+csf_high_clonotypes <- row.names(csf_high)
+
+exp_category <- row.names(clone_counts_bcr)
+exp_category[exp_category %in% csf_high_clonotypes]   <- "CSF_high_expanded"
+exp_category[! exp_category %in% "CSF_high_expanded"] <- "Other"
+clone_counts_bcr$exp_category <- exp_category
+```
+
+* Most B cell clonotypes are 1 cell either in the CSF or PB
+```{r,fig.height=5, fig.width=15,echo=FALSE,warning=FALSE}
+# TCR 
+p1 <- ggplot(clone_counts_tcr, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
+
+p2 <- ggplot(clone_counts_bcr, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("B cells")
+
+#p1 <- p1 + scale_x_continuous(trans = 'log2') + scale_y_continuous(trans = 'log2')
+grid.arrange(p1,p2, nrow = 1)
+```
+
+# -----------------------------
+
+# GLIPH2 Network Analysis
+
+
+# 1. Load GLIPH2 results for all CSF clones
+```{r}
+gliph_results_fh <- "4_FindCandidates/all_CSF_GLIPH2/AllCSF_cluster.csv"
+gliph_resuls_csf <- read.csv(gliph_results_fh,header = T,stringsAsFactors = F)
+gliph_resuls_csf$CRD3ab_AA <- paste(gliph_resuls_csf$TcRa,gliph_resuls_csf$TcRb,sep = ":")
+all_groups       <- unique(gliph_resuls_csf$index)
+```
+
+# 2. Add CSF clonotype frequencies and cell counts to TCR results
+```{r}
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results,clone_counts = clone_counts_tcr,target.col = "pct_CSF",new.col.name = "clonotype_CSF_freq")
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,clone_counts = clone_counts_tcr,target.col = "cell_count",new.col.name = "cell_count")
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,clone_counts = clone_counts_tcr,target.col = "CSF_count",new.col.name = "CSF_count")
+```
+
+# 3. Add GLIPH results into mAb table
+
+### a. GLIPH status 
+```{r}
+# Add Unified CDR3 Alpha/Beta string to TCR table
+tcr_cdr3_col <- tcr_results_gliph$CELL_BARCODES
+
+for (cell in unique(tcr_results_gliph$CELL_BARCODES)) {
+  cell_df <- tcr_results_gliph[tcr_results_gliph$CELL_BARCODES %in% cell,]
+  alpha   <- cell_df[cell_df$locus %in% "TRA",]
+  beta    <- cell_df[cell_df$locus %in% "TRB",]
+  ab      <- paste(c(alpha$junction_aa,beta$junction_aa),collapse = ":")
+  tcr_cdr3_col[tcr_cdr3_col %in% cell] <- ab
+}
+tcr_results_gliph$CDR3ab_AA <- tcr_cdr3_col
+
+# Gliph results status 
+gliph_status_col <- tcr_results_gliph$CDR3ab_AA
+gliph_status_col[gliph_status_col %in% unique(gliph_resuls_csf$CRD3ab_AA)] <- "1"
+gliph_status_col[! gliph_status_col %in% "1"] <- "0"
+tcr_results_gliph$gliph_status <- gliph_status_col
+```
+
+### b. Add index groups
+```{r}
+target_cells <- tcr_results_gliph[tcr_results_gliph$CDR3ab_AA %in% gliph_resuls_csf$CRD3ab_AA,]
+target_cells <- unique(target_cells$CELL_BARCODES)
+
+index_col        <- tcr_results_gliph$CDR3ab_AA
+names(index_col) <- tcr_results_gliph$CELL_BARCODES
+index_col[! names(index_col) %in% target_cells] <- ""
+
+target_cdr3ab <- unique(as.character(index_col[! index_col %in% ""]))
+
+
+for (ab in target_cdr3ab) {
+  gliph_sub <- gliph_resuls_csf[gliph_resuls_csf$CRD3ab_AA %in% ab,]
+  if(nrow(gliph_sub) > 0){
+    index_vec <- unique(gliph_sub$index)
+    if(length(index_vec) > 1){
+      index_fmt <- paste(sort(index_vec),collapse = ":")
+      index_col[index_col %in% ab] <- index_fmt
+    } else{
+      index_col[index_col %in% ab] <- index_vec
+    }
+    
+  }
+}
+
+tcr_results_gliph$gliph_group <- index_col
+```
+
+
+# 4. Create GLIPH Network
+```{r}
+clonotype_counts_csf     <- clone_counts_tcr[clone_counts_tcr$CSF_count > 1,]
+clonotype_counts_csf_exp <- clonotype_counts_csf[clonotype_counts_csf$cell_count > 1,]
+THRESH <- 0.75
+high_csf_clones     <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio > THRESH,]
+moderate_csf_clones <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio <= THRESH,]
+
+
+target_clones <- row.names(high_csf_clones) # Expanded CSF clones
+
+# Omit cells with no Alpha CDR3
+tcr_results_gliph$junction_aa
+data_tcr_na     <- tcr_results_gliph[is.na(tcr_results_gliph$junction_aa),]
+incomplete_tcrs <- unique(data_tcr_na$CELL_BARCODES)
+data_tcr_clean  <- tcr_results_gliph[! tcr_results_gliph$CELL_BARCODES %in% incomplete_tcrs,]
+
+# Get target CSF high Clonotypes
+data_tcr_csf     <- data_tcr_clean[data_tcr_clean$COMPARTMENT %in% c("CSF"),]
+data_tcr_csf_exp <- data_tcr_csf[data_tcr_csf$clone_id %in% row.names(clonotype_counts_csf_exp),]
+data_tcr_csf_exp <- data_tcr_csf_exp[data_tcr_csf_exp$gliph_status %in% "1",]
+
+data_tcr_target <- data_tcr_csf_exp[data_tcr_csf_exp$clone_id %in% target_clones,]
+
+# Isoloate all cells with interacting CDR3s (all GLIPH 2 groups)
+target_groups <- unique(data_tcr_target$gliph_group)
+
+target_groups_all <- c()
+for (grp in target_groups) {
+  if(grepl(":",grp)){
+    # string contains more than one TCR group
+    # Add in full grp interaction string
+    target_groups_all <- c(target_groups_all,grp)
+    
+    # Add in all individual groups within interaction string
+    grp_list <- unlist(strsplit(grp, ":"))
+    target_groups_all <- c(target_groups_all,grp_list)
+  } else{
+    target_groups_all <- c(target_groups_all,grp)
+  }
+}
+target_groups_all <- unique(target_groups_all)
+
+interac_tcr <- data_tcr_csf[data_tcr_csf$gliph_group %in% target_groups_all,]
+interac_tcr <- unique(interac_tcr$CELL_BARCODES)
+
+# Get all CSF high and cells with interacting TCRs
+all_target_cells <- c(unique(data_tcr_target$CELL_BARCODES),interac_tcr)
+data_tcr_target_all <- data_tcr_clean[data_tcr_clean$CELL_BARCODES %in% all_target_cells,]
+
+
+# Omit nodes with no interactions (gliph  interactions = 0)
+data_tcr_target_all <- data_tcr_target_all[data_tcr_target_all$gliph_status %in% "1",]
+
+
+# Create GML file - Clonotype level network
+createGLIPH2clonotypeNetworkGML(
+  data_tcr   =  data_tcr_target_all,
+  result_dir = "4_FindCandidates/CSF_High_ClonotypeNetwork_GLIPH2",
+  output_name     = "gliph_cleaned_clusters_CSF_high_GLIPH2",
+  count_cutoff    =  as.numeric(2),  # UMI Count cut-off
+  distance_cutoff =  as.numeric(0),
+  method = "hamming",
+  cores = 4)
+```
+
+
+# 5. Create TCR clonotype connection network
+```{r}
+tcr_results_gliph_sub <- tcr_results_gliph[tcr_results_gliph$cell_count > 1,]
+createTCRnetworkGML(
+  data_tcr   =  tcr_results_gliph_sub,
+  result_dir = "4_FindCandidates/TCR_ClonotypeNetwork",
+  output_name     = "cleaned_clusters",
+  count_cutoff    =  as.numeric(2),  # UMI Count cut-off
+  distance_cutoff =  as.numeric(0),
+  method = "hamming",
+  cores = 4)
+
+
+```
+
+
+# 6. Format Results for a Query in VDJdb (CSF only)
+
+format CSF TCR results for upload to VDJ db
+
+### a. add clonotype frequencies to TCR CSF results
+```{r}
+# Transfer clonotype Freq back to full results
+tcr_results_csf <- tcr_results_gliph[tcr_results_gliph$COMPARTMENT %in% "CSF",]
+tcr_results_csf <- tcr_results_csf[tcr_results_csf$STATUS %in% "Disease",]
+clonotype_freq    <- tcr_results_csf$clone_id
+clonotype_count   <- tcr_results_csf$clone_id
+
+for(clone in row.names(clone_counts_tcr)){
+  clone_row  <- clone_counts_tcr[row.names(clone_counts_tcr) %in% clone,]
+  cell_count <- clone_row$CSF_count
+  clone_freq <- clone_row$pct_CSF / 100
+  
+  clonotype_count[clonotype_count %in% clone] <- cell_count
+  clonotype_freq[clonotype_freq %in% clone]   <- clone_freq
+}
+
+tcr_results_csf$CLONE_COUNT <- clonotype_count
+tcr_results_csf$CLONE_FREQ  <- clonotype_freq
+```
+
+### b. format table to meet VDJdb format
+```{r}
+cols_to_keep  <- c("CLONE_COUNT","CLONE_FREQ","junction","junction_aa","v_call","d_call","j_call")
+fmt_col_names <- c("count","frequency","CDR3nt","CDR3aa","V","D","J")
+
+fmt_tcr_results <- tcr_results_csf[,cols_to_keep]
+names(fmt_tcr_results) <- fmt_col_names
+
+fmt_tcr_results$D      <- "."
+fmt_tcr_results$Vend   <- ""
+fmt_tcr_results$Dstart <- ""
+fmt_tcr_results$Dend   <- ""
+fmt_tcr_results$Jstart <- ""
+
+```
+
+# 7. Output table and upload to VDJdb
+
+VDJdb <https://vdjdb.cdr3.net/>
+1. You will need to create an account or login temporarily.
+2. Once logged in, click on the 'Annotation' tab
+3. Click on the 'Upload' button
+4. Click 'Add' and select the file we are generating bellow 
+```{r}
+write.table(fmt_tcr_results,file = "4_FindCandidates/table_for_VDJdb_CSF.txt",quote = F,row.names = F,sep = "\t")
+```
+
+
+# 8. Assembling monoclonals
+
+### a. BCR - assemble FR and CDRs for clonotypes of interest
+```{r}
+# B cells
+target_bcr <- clone_counts_bcr[clone_counts_bcr$exp_category %in% "CSF_high_expanded",]
+target_bcr <- row.names(target_bcr)[1]
+
+# subset all cells in target clone (Heavy and Light chains)
+bcr_results$fmt_cell_id <- tstrsplit(bcr_results$sequence_id,"_contig")[[1]]
+target_bcr_df <- bcr_results[bcr_results$clone_id %in% target_bcr,] # heavy chains only
+target_bcr_df <- bcr_results[bcr_results$fmt_cell_id %in% target_bcr_df$fmt_cell_id,]
+
+# Subset columns
+cols_to_keep <- c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id",
+                  "fwr1","cdr1","fwr2","cdr2","fwr3","cdr3","fwr4")
+target_bcr_df <- target_bcr_df[,cols_to_keep]
+
+# concatenate sequences and remove gaps
+target_bcr_df$monoclonal_seq <- paste(target_bcr_df$fwr1,target_bcr_df$cdr1,
+                                      target_bcr_df$fwr2,target_bcr_df$cdr2,
+                                      target_bcr_df$fwr3,target_bcr_df$cdr3,target_bcr_df$fwr4,sep = "")
+target_bcr_df$monoclonal_seq <- str_replace_all(target_bcr_df$monoclonal_seq,"\\.","")
+
+target_bcr_df_sub <- target_bcr_df[,c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id","monoclonal_seq")]
+```
+
+### b. TCR - assemble FR and CDRs for clonotypes of interest
+```{r}
+# T cells
+target_tcr <- clone_counts_tcr[clone_counts_tcr$exp_category %in% "CSF_high_expanded",]
+target_tcr <- target_tcr[order(target_tcr$CSF_PB_ratio,decreasing = T),]
+target_tcr <- row.names(target_tcr)[1]
+
+# subset all cells in target clone (Heavy and Light chains)
+tcr_results$fmt_cell_id <- tstrsplit(tcr_results$sequence_id,"_contig")[[1]]
+target_tcr_df <- tcr_results[tcr_results$clone_id %in% target_tcr,] # Alpha and Beta
+
+# Subset columns
+cols_to_keep <- c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id",
+                  "fwr1","cdr1","fwr2","cdr2","fwr3","cdr3","fwr4")
+target_tcr_df <- target_tcr_df[,cols_to_keep]
+
+# concatenate sequences and remove gaps
+target_tcr_df$monoclonal_seq <- paste(target_tcr_df$fwr1,target_tcr_df$cdr1,
+                                      target_tcr_df$fwr2,target_tcr_df$cdr2,
+                                      target_tcr_df$fwr3,target_tcr_df$cdr3,target_tcr_df$fwr4,sep = "")
+target_tcr_df$monoclonal_seq <- str_replace_all(target_tcr_df$monoclonal_seq,"\\.","")
+
+target_tcr_df_sub <- target_tcr_df[,c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id","monoclonal_seq")]
+```
+
+### c. Other tools
+
+### --stichr (TCRs only)
+* https://github.com/JamieHeather/stitchr
+```{bash}
+python3 stitchr.py -v TRBV7-6 -j TRBJ1-4 -cdr3 CASSSGQGLGEKLFF
+```
+
+
+

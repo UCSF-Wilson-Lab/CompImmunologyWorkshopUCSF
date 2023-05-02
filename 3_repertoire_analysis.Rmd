@@ -353,7 +353,9 @@ m4 <- plotMutability(model_disease, nucleotides="T", style="hedgehog")
 ```
 
 
-# 9. Trees - B cells 
+# 9. Immune Repertoire networks - igraph
+
+# 9. Trees - B cells (Remove)
 
 * Dowser
 https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
