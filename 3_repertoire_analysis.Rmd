@@ -353,9 +353,7 @@ m4 <- plotMutability(model_disease, nucleotides="T", style="hedgehog")
 ```
 
 
-# 9. Immune Repertoire networks - igraph
-
-# 9. Trees - B cells (Remove)
+# 9. Trees - B cells
 
 * Dowser
 https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
@@ -363,6 +361,8 @@ https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
 ## Dowser 
 
 ### a. format clones
+* Need larger clonotypes across more samples to effectively use this tool
+* Trees are only made for one clonotype ID at a time
 ```{r}
 # No BCR clones of sufficient size for making trees with dowser
 input_trees            <- bcr_df
@@ -370,9 +370,9 @@ input_trees$subject_id <- tstrsplit(input_trees$sample,"_")[[1]]
 clones                 <-  formatClones(input_trees,minseq = 2)
 
 # Follow tutorial instead
-data(ExampleClones) # sample dataset
-ExampleClones_m <- scaleBranches(ExampleClones, edge_type="mutations")
-clones          <- ExampleClones_m[1:2,]
+data(ExampleClones)
+ExampleClones = ExampleClones[1:2,]
+plots = plotTrees(ExampleClones)
 
 print(clones)
 ```
