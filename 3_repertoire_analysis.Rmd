@@ -31,6 +31,9 @@ library(gridExtra)    # grid.arrange()
 library(cowplot)
 library(dplyr)
 library(ggpubr) # just added
+library(impactSingleCellToolkit)
+
+seed.number <- 123456
 
 source("resources/functions_workshop.R")
 ```
@@ -40,8 +43,18 @@ source("resources/functions_workshop.R")
 ```{r}
 load("objects/processed_objects.RData")
 
+# Remove cells with no annotations (2 cells)
+tcr_df <- tcr_df[! tcr_df$SUBTYPE_ANNOTATION %in% "No Annot",]
+bcr_df <- bcr_df[! bcr_df$SUBTYPE_ANNOTATION %in% "No Annot",]
+
+# Simplify V/J genes
+tcr_df$v_call <- tstrsplit(tcr_df$v_call,"\\*")[[1]]
+tcr_df$j_call <- tstrsplit(tcr_df$j_call,"\\*")[[1]]
+bcr_df$v_call <- tstrsplit(bcr_df$v_call,"\\*")[[1]]
+bcr_df$j_call <- tstrsplit(bcr_df$j_call,"\\*")[[1]]
+
 # For B cells, IgSeq analyses are done on the Heavy chain only
-bcr_results_igh <- bcr_results[bcr_results$locus %in% "IGH",]
+bcr_results_igh <- bcr_df[bcr_df$locus %in% "IGH",]
 ```
 
 # Immcantation
@@ -52,15 +65,17 @@ https://alakazam.readthedocs.io/en/stable/vignettes/Diversity-Vignette/
 
 ### a. Rank Diversity CSF vs. PB
 ```{r,fig.height=10, fig.width=11,echo=FALSE,warning=FALSE}
+set.seed(seed.number)
+
 comp_colors <- c("CSF"="blue", "PB"="tomato2")
 t_annot_colors <- c("CD4 T cells"="seagreen", "CD8 T cells"="steelblue")
-b_annot_colors <- c("Memory B-cells"="seagreen", "Naive B-cells"="steelblue","Plasma cells"="tomato2")
+b_annot_colors <- c("Memory B-cells"="seagreen", "naive B-cells"="steelblue","Plasma cells"="tomato2")
 
 # T cells
-rank_curve_loc  <- estimateAbundance(tcr_results, group="COMPARTMENT", ci=0.95, nboot=200)
+rank_curve_loc  <- estimateAbundance(tcr_df, group="COMPARTMENT", ci=0.95, nboot=200)
 r1<-plot(rank_curve_loc,main_title="T cell Rank diversity CSF and PB",colors=comp_colors)
 
-rank_curve_annot  <- estimateAbundance(tcr_results, group="SUBTYPE_ANNOTATION", ci=0.95, nboot=200)
+rank_curve_annot  <- estimateAbundance(tcr_df, group="SUBTYPE_ANNOTATION", ci=0.95, nboot=200)
 r2<-plot(rank_curve_annot,main_title="Rank diversity T cell Annotation",color=t_annot_colors)
 
 # B cells
@@ -72,18 +87,23 @@ r4<-plot(rank_curve_annot,main_title="Rank diversity B cell Annotation",colors=b
 
 
 # Plot both curves in the same plot
-plot_grid(r1,r2,r3,r4,ncol = 2)
+panel_rank_curves <- plot_grid(r1,r2,r3,r4,ncol = 2)
+panel_rank_curves
 ```
 
 ### a. Disease vs. Healthy
 ```{r,fig.height=10, fig.width=11,echo=FALSE,warning=FALSE}
+set.seed(seed.number)
+
 status_colors   <- c("Healthy"="seagreen", "Disease"="steelblue")
 b_status_colors <- c("Disease"="steelblue")
 
-tcr_results_csf     <- tcr_results[tcr_results$COMPARTMENT %in% "CSF",]
+tcr_results_csf     <- tcr_df[tcr_df$COMPARTMENT %in% "CSF",]
 bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
 
-rank_curve_annot  <- estimateAbundance(tcr_results, group="STATUS", ci=0.95, nboot=200)
+
+
+rank_curve_annot  <- estimateAbundance(tcr_df, group="STATUS", ci=0.95, nboot=200)
 r5<-plot(rank_curve_annot,main_title="Rank diversity T cell Status",colors=status_colors)
 
 rank_curve_annot  <- estimateAbundance(bcr_results_igh, group="STATUS", ci=0.95, nboot=200,min_n = 8)
@@ -97,7 +117,8 @@ rank_curve_annot  <- estimateAbundance(bcr_results_igh_csf, group="STATUS", ci=0
 r8<-plot(rank_curve_annot,main_title="Rank diversity B cell Status CSF",colors=b_status_colors)
 
 # Plot both curves in the same plot
-plot_grid(r5,r6,r7,r8,ncol = 2)
+panel2_rank_curves <- plot_grid(r5,r6,r7,r8,ncol = 2)
+panel2_rank_curves
 ```
 
 
@@ -189,6 +210,8 @@ plot_grid(g1,g2,nrow=2)
 
 ### a. generate diversity results for B cell isotypes (CSF vs. PB)
 ```{r}
+set.seed(seed.number)
+
 bcr_results_igh_igm  <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHM",]
 bcr_results_igh_iga1 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHA1",]
 bcr_results_igh_iga2 <- bcr_results_igh[bcr_results_igh$c_call %in% "IGHA2",]
@@ -210,7 +233,7 @@ table(bcr_results_igh$c_call)
 ```
 
 ### b. plot diversity curves
-```{r,fig.height=7,fig.width=10}
+```{r,fig.height=3,fig.width=10}
 comp_colors  <- c("CSF"="blue", "PB"="tomato2")
 comp_colors2 <- c("PB"="tomato2")
 
@@ -221,15 +244,19 @@ a4<-plot(a4_curve, main_title="IgG1 alpha diversity",colors=comp_colors)
 a5<-plot(a5_curve, main_title="IgG2 alpha diversity",colors=comp_colors2)
 a6<-plot(a6_curve, main_title="IgG3 alpha diversity",colors=comp_colors2)
 
-plot_grid(a1,a2,a3,a4,a5,a6,nrow = 2)
+#panel_ad <- plot_grid(a1,a2,a3,a4,a5,a6,nrow = 2)
+panel_ad <- plot_grid(a1,a4,a3,nrow = 1)
+panel_ad
 ```
 
 # 6. T cell Alpha Diversity
 
 ### a. generate diversity results for T cell subtypes(CSF vs. PB)
 ```{r}
-tcr_results_d      <- tcr_results[tcr_results$STATUS %in% "Disease",]
-tcr_results_h      <- tcr_results[tcr_results$STATUS %in% "Healthy",]
+set.seed(seed.number)
+
+tcr_results_d      <- tcr_df[tcr_df$STATUS %in% "Disease",]
+tcr_results_h      <- tcr_df[tcr_df$STATUS %in% "Healthy",]
 tcr_results_d_cd4  <- tcr_results_d[tcr_results_d$SUBTYPE_ANNOTATION %in% "CD4 T cells",]
 tcr_results_d_cd8  <- tcr_results_d[tcr_results_d$SUBTYPE_ANNOTATION %in% "CD8 T cells",]
 tcr_results_h_cd4  <- tcr_results_h[tcr_results_h$SUBTYPE_ANNOTATION %in% "CD4 T cells",]
@@ -247,14 +274,14 @@ a10_curve <- alphaDiversity(tcr_results_h_cd8, group="COMPARTMENT",min_q=0, max_
 ### b. plot diversity curves
 ```{r,fig.height=7,fig.width=8}
 comp_colors  <- c("CSF"="blue", "PB"="tomato2")
-#comp_colors2 <- c("PB"="tomato2")
 
 a7<-plot(a7_curve,main_title="CD4 Disease alpha diversity",colors=comp_colors)
 a8<-plot(a8_curve,main_title="CD8 Disease alpha diversity",colors=comp_colors)
 a9<-plot(a9_curve,main_title="CD4 Healthy alpha diversity",colors=comp_colors)
 a10<-plot(a10_curve, main_title="CD8 Healthy alpha diversity",colors=comp_colors)
 
-plot_grid(a7,a8,a9,a10,nrow = 2)
+panel_tcr_ad <- plot_grid(a7,a8,a9,a10,nrow = 2)
+panel_tcr_ad
 ```
 
 
@@ -265,6 +292,8 @@ plot_grid(a7,a8,a9,a10,nrow = 2)
 * Further exploration: https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
 
 ```{r}
+set.seed(seed.number)
+
 # Calculate combined R and S mutation frequencies
 bcr_csf_obs <- observedMutations(bcr_results_igh_csf, sequenceColumn="sequence_alignment",
                             germlineColumn="germline_alignment_d_mask",
@@ -282,7 +311,7 @@ bcr_pb_obs <- observedMutations(bcr_results_igh_pb, sequenceColumn="sequence_ali
 ```
 
 
-```{r,fig.height=10, fig.width=11,echo=TRUE,warning=FALSE}
+```{r,fig.height=7, fig.width=11,echo=TRUE,warning=FALSE}
 g1 <- ggplot(bcr_csf_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
     theme_bw() + ggtitle("BCR CSF Total mutations") +
     xlab("Isotype") + ylab("Mutation frequency") +
@@ -307,6 +336,8 @@ grid.arrange(g1,g2,nrow=2)
 
 ### a. setup models
 ```{r}
+set.seed(seed.number)
+
 bcr_results_igh_d <- bcr_results_igh[bcr_results_igh$STATUS %in% "Disease",]
 
 clone_db      <- collapseClones(bcr_results_igh_d, nproc=1)
@@ -322,8 +353,7 @@ m4 <- plotMutability(model_disease, nucleotides="T", style="hedgehog")
 ```
 
 
-
-# 5. Trees - B cells 
+# 9. Trees - B cells 
 
 * Dowser
 https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
@@ -333,8 +363,8 @@ https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
 ### a. format clones
 ```{r}
 # No BCR clones of sufficient size for making trees with dowser
-input_trees            <- bcr_results
-input_trees$subject_id <- tstrsplit(input_trees$SAMPLE,"_")[[1]]
+input_trees            <- bcr_df
+input_trees$subject_id <- tstrsplit(input_trees$sample,"_")[[1]]
 clones                 <-  formatClones(input_trees,minseq = 2)
 
 # Follow tutorial instead

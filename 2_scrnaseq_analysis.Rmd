@@ -267,6 +267,8 @@ plot_grid(p1_bcell,p2_bcell,ncol = 2)
 ```
 
 #### Upset plot
+* bars = number of DE genes
+* by default it only shows 10 pathways
 ```{r,fig.height=5,fig.width=7}
 bcell_upset_plot <-upsetplot(edo)
 bcell_upset_plot
