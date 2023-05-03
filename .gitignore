@@ -43,3 +43,4 @@ vignettes/*.pdf
 # Ignore data and objects
 *data/
 *objects/
+*4_FindCandidates/

@@ -30,6 +30,10 @@ library(ggplot2)
 library(RColorBrewer)
 library(gridExtra)    # grid.arrange()
 library(dplyr)
+library(impactSingleCellToolkit)
+
+# GLIPH2 results directory
+results_dir_gliph2 <- "4_FindCandidates/all_CSF_GLIPH2"
 
 source("resources/functions_workshop.R")
 ```
@@ -39,6 +43,15 @@ source("resources/functions_workshop.R")
 ```{r}
 load("objects/processed_objects.RData")
 ```
+
+# -----------------------------
+
+# Immune Repertoires
+
+
+# -----------------------------
+
+
 
 # 2. Dot plot of clonotypes
 
@@ -84,8 +97,54 @@ grid.arrange(p1,p2, nrow = 1)
 
 # GLIPH2 Network Analysis
 
+# 1. Generate input files
+* Running GLIPH2 is optional, results files provided
+* generateGLIPH2inputFiles will create all the input files you need for GLIPH2, but running GLIPH2 still requires a parameter plain text file (made manually)
 
-# 1. Load GLIPH2 results for all CSF clones
+```{r}
+tcr_df_csf         <- tcr_df[tcr_df$COMPARTMENT %in% "CSF",]
+tcr_df_csf$patient <- tstrsplit(tcr_df_csf$sample,"_")[[1]]
+
+generateGLIPH2inputFiles(tcr_df_csf,results.dir = results_dir_gliph2)
+```
+
+
+# 2. Run GLIPH2 in the terminal (OPTIONAL)
+
+### a. Format input parameter file
+* parameter files have been provided as part of the workshop
+* Example: parameter file will include the following lines:
+```{bash}
+out_prefix=AllCSF
+cdr3_file=TCR_input_table.GLIPH2.tsv
+refer_file=ref.txt
+v_usage_freq_file=ref_V.txt
+cdr3_length_freq_file=ref_L.txt
+local_min_pvalue=0.001
+p_depth=1000
+global_convergence_cutoff=1
+simulation_depth=1000
+kmer_min_depth=3
+local_min_OVE=10
+algorithm=GLIPH2
+all_aa_interchangeable=1
+```
+
+* To inlcude HLA genotypes, create a TSV with all class 1 and 2 alleles (1 row per patient)
+* Example: adding HLA geneotypes in parameter file:
+```{bash}
+hla_file=HLA_table_formatted_GLIPH.class1and2.tab
+```
+
+### b. Run GLIPH2 in terminal (OPTIONAL)
+* Results provided used input patient HLA genotypes
+```{bash}
+cd 4_FindCandidates/all_CSF_GLIPH2
+irtools.centos -c param_file_gliph2.cfg
+```
+
+
+# 3. Load GLIPH2 results for all CSF clones
 ```{r}
 gliph_results_fh <- "4_FindCandidates/all_CSF_GLIPH2/AllCSF_cluster.csv"
 gliph_resuls_csf <- read.csv(gliph_results_fh,header = T,stringsAsFactors = F)

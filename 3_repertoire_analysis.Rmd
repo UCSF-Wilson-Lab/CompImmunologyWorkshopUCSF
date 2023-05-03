@@ -368,17 +368,20 @@ https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
 input_trees            <- bcr_df
 input_trees$subject_id <- tstrsplit(input_trees$sample,"_")[[1]]
 clones                 <-  formatClones(input_trees,minseq = 2)
-
-# Follow tutorial instead
-data(ExampleClones)
-ExampleClones = ExampleClones[1:2,]
-plots = plotTrees(ExampleClones)
-
 print(clones)
 ```
 
 ### b. build tree
 ```{r}
+# Follow tutorial instead
+
+# Load example data object
+data(ExampleClones)
+
+# Pick the two largest clonotypes
+ExampleClones = ExampleClones[1:2,]
+plots = plotTrees(ExampleClones)
+
 plots = plotTrees(ExampleClones, tips="c_call")
 
 plots[[1]]
