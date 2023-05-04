@@ -129,6 +129,8 @@ plot(bcr_hc_net,layout = layout_with_kk, main = "BCR - Healthy Patient")
 
 # 2. TCR networks - Expanded only
 
+T cell networks are a lot larger than B cell networks, therefore we will focus only on clonally expanded cells.
+
 ### a. Disease patient
 ```{r}
 tcr_df$patient <- tstrsplit(tcr_df$sample,"_")[[1]]
@@ -170,51 +172,83 @@ plot(tcr_net,layout = layout_with_fr, main = "TCR - Disease Patient")
 plot(tcr_hc_net,layout = layout_with_fr, main = "TCR - Healthy Patient")
 ```
 
+# 3. TCR networks - CD8 Expanded only
+
+### a. Disease patient
+```{r}
+tcr_df_exp <- tcr_df[! tcr_df$EXPANSION_CATEGORY %in% "Non-expanded",]
+tcr_df_exp <- tcr_df_exp[tcr_df_exp$SUBTYPE_ANNOTATION %in% "CD8 T cells",]
+
+# CSF and PB
+tcr_node_df             <- createRepertoireNodeDataframe(tcr_df_exp,assay = "tcr",select.patients = "28",
+                                                         expansion.thresh = 2)
+tcr_node_df$compartment <- tstrsplit(tcr_node_df$id,"_")[[2]]
+tcr_edges               <- createRepertoireEdgeDataframe(tcr_node_df)
+tcr_net                 <- graph_from_data_frame(d=tcr_edges, vertices=tcr_node_df, directed=F)
+tcr_net                 <- formatIgraphNetwork(tcr_net,extra.size = F,edge.width = 1)
+```
+
+### b. Healthy patient
+```{r}
+# CSF and PB
+tcr_hc_node_df             <- createRepertoireNodeDataframe(tcr_df_exp,assay = "tcr",select.patients = "32",
+                                                            expansion.thresh = 2)
+tcr_hc_node_df$compartment <- tstrsplit(tcr_hc_node_df$id,"_")[[2]]
+tcr_hc_edges               <- createRepertoireEdgeDataframe(tcr_hc_node_df)
+tcr_hc_net                 <- graph_from_data_frame(d=tcr_hc_edges, vertices=tcr_hc_node_df, directed=F)
+tcr_hc_net                 <- formatIgraphNetwork(tcr_hc_net,extra.size = F,edge.width = 1)
+```
+
+
+### c. Plot
+```{r}
+set.seed(seed.number)
+
+par(mfrow=c(1,2))
+plot(tcr_net,layout = layout_with_fr, main = "TCR CD8 - Disease Patient")
+plot(tcr_hc_net,layout = layout_with_fr, main = "TCR CD8 - Healthy Patient")
+```
 
 
 
-
-
-
-# -----------------------------
-
-
-
-# 2. Dot plot of clonotypes
+# 4. Dot plot of clonotypes
 
 * Search for Disease Relevant Clonotypes (Thresholds based on prior analysis)
     * CSF_PB_RATIO_THRESH > 2
     * PB_count <= 1
 
 ```{r}
+clone_counts_tcr_disease <- createCloneCountTable(tcr_df[tcr_df$patient %in% "28",])
+clone_counts_bcr_disease <- createCloneCountTable(bcr_df[bcr_df$patient %in% "28",])
+
 # Add column of CSF expanded/Other
 CSF_PB_RATIO_THRESH = 2
 
 # TCR
-csf_high <- clone_counts_tcr[clone_counts_tcr$PB_count <= 1 & clone_counts_tcr$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
+csf_high <- clone_counts_tcr_disease[clone_counts_tcr_disease$PB_count <= 1 & clone_counts_tcr_disease$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
 csf_high_clonotypes <- row.names(csf_high)
 
-exp_category <- row.names(clone_counts_tcr)
+exp_category <- row.names(clone_counts_tcr_disease)
 exp_category[exp_category %in% csf_high_clonotypes]   <- "CSF_high_expanded"
 exp_category[! exp_category %in% "CSF_high_expanded"] <- "Other"
-clone_counts_tcr$exp_category <- exp_category
+clone_counts_tcr_disease$exp_category <- exp_category
 
 # BCR
-csf_high <- clone_counts_bcr[clone_counts_bcr$PB_count <= 1 & clone_counts_bcr$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
+csf_high <- clone_counts_bcr_disease[clone_counts_bcr_disease$PB_count <= 1 & clone_counts_bcr_disease$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
 csf_high_clonotypes <- row.names(csf_high)
 
-exp_category <- row.names(clone_counts_bcr)
+exp_category <- row.names(clone_counts_bcr_disease)
 exp_category[exp_category %in% csf_high_clonotypes]   <- "CSF_high_expanded"
 exp_category[! exp_category %in% "CSF_high_expanded"] <- "Other"
-clone_counts_bcr$exp_category <- exp_category
+clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
 * Most B cell clonotypes are 1 cell either in the CSF or PB
 ```{r,fig.height=5, fig.width=15,echo=FALSE,warning=FALSE}
 # TCR 
-p1 <- ggplot(clone_counts_tcr, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
+p1 <- ggplot(clone_counts_tcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
 
-p2 <- ggplot(clone_counts_bcr, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("B cells")
+p2 <- ggplot(clone_counts_bcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("B cells")
 
 #p1 <- p1 + scale_x_continuous(trans = 'log2') + scale_y_continuous(trans = 'log2')
 grid.arrange(p1,p2, nrow = 1)
@@ -281,7 +315,7 @@ all_groups       <- unique(gliph_resuls_csf$index)
 
 # 2. Add CSF clonotype frequencies and cell counts to TCR results
 ```{r}
-tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results,clone_counts = clone_counts_tcr,target.col = "pct_CSF",new.col.name = "clonotype_CSF_freq")
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_df,clone_counts = clone_counts_tcr,target.col = "pct_CSF",new.col.name = "clonotype_CSF_freq")
 tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,clone_counts = clone_counts_tcr,target.col = "cell_count",new.col.name = "cell_count")
 tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,clone_counts = clone_counts_tcr,target.col = "CSF_count",new.col.name = "CSF_count")
 ```
@@ -291,10 +325,10 @@ tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,cl
 ### a. GLIPH status 
 ```{r}
 # Add Unified CDR3 Alpha/Beta string to TCR table
-tcr_cdr3_col <- tcr_results_gliph$CELL_BARCODES
+tcr_cdr3_col <- tcr_results_gliph$unique_cell_id
 
-for (cell in unique(tcr_results_gliph$CELL_BARCODES)) {
-  cell_df <- tcr_results_gliph[tcr_results_gliph$CELL_BARCODES %in% cell,]
+for (cell in unique(tcr_results_gliph$unique_cell_id)) {
+  cell_df <- tcr_results_gliph[tcr_results_gliph$unique_cell_id %in% cell,]
   alpha   <- cell_df[cell_df$locus %in% "TRA",]
   beta    <- cell_df[cell_df$locus %in% "TRB",]
   ab      <- paste(c(alpha$junction_aa,beta$junction_aa),collapse = ":")
@@ -309,13 +343,13 @@ gliph_status_col[! gliph_status_col %in% "1"] <- "0"
 tcr_results_gliph$gliph_status <- gliph_status_col
 ```
 
-### b. Add index groups
+### b. Add index groups (GLIPH interaction groups)
 ```{r}
 target_cells <- tcr_results_gliph[tcr_results_gliph$CDR3ab_AA %in% gliph_resuls_csf$CRD3ab_AA,]
-target_cells <- unique(target_cells$CELL_BARCODES)
+target_cells <- unique(target_cells$unique_cell_id)
 
 index_col        <- tcr_results_gliph$CDR3ab_AA
-names(index_col) <- tcr_results_gliph$CELL_BARCODES
+names(index_col) <- tcr_results_gliph$unique_cell_id
 index_col[! names(index_col) %in% target_cells] <- ""
 
 target_cdr3ab <- unique(as.character(index_col[! index_col %in% ""]))
@@ -339,7 +373,7 @@ tcr_results_gliph$gliph_group <- index_col
 ```
 
 
-# 4. Create GLIPH Network
+# 4. Filter TCR and GLIPH data based on highly expanded CSF clones
 ```{r}
 clonotype_counts_csf     <- clone_counts_tcr[clone_counts_tcr$CSF_count > 1,]
 clonotype_counts_csf_exp <- clonotype_counts_csf[clonotype_counts_csf$cell_count > 1,]
@@ -353,8 +387,8 @@ target_clones <- row.names(high_csf_clones) # Expanded CSF clones
 # Omit cells with no Alpha CDR3
 tcr_results_gliph$junction_aa
 data_tcr_na     <- tcr_results_gliph[is.na(tcr_results_gliph$junction_aa),]
-incomplete_tcrs <- unique(data_tcr_na$CELL_BARCODES)
-data_tcr_clean  <- tcr_results_gliph[! tcr_results_gliph$CELL_BARCODES %in% incomplete_tcrs,]
+incomplete_tcrs <- unique(data_tcr_na$unique_cell_id)
+data_tcr_clean  <- tcr_results_gliph[! tcr_results_gliph$unique_cell_id %in% incomplete_tcrs,]
 
 # Get target CSF high Clonotypes
 data_tcr_csf     <- data_tcr_clean[data_tcr_clean$COMPARTMENT %in% c("CSF"),]
@@ -383,15 +417,28 @@ for (grp in target_groups) {
 target_groups_all <- unique(target_groups_all)
 
 interac_tcr <- data_tcr_csf[data_tcr_csf$gliph_group %in% target_groups_all,]
-interac_tcr <- unique(interac_tcr$CELL_BARCODES)
+interac_tcr <- unique(interac_tcr$unique_cell_id)
 
 # Get all CSF high and cells with interacting TCRs
-all_target_cells <- c(unique(data_tcr_target$CELL_BARCODES),interac_tcr)
-data_tcr_target_all <- data_tcr_clean[data_tcr_clean$CELL_BARCODES %in% all_target_cells,]
+all_target_cells <- c(unique(data_tcr_target$unique_cell_id),interac_tcr)
+data_tcr_target_all <- data_tcr_clean[data_tcr_clean$unique_cell_id %in% all_target_cells,]
 
 
 # Omit nodes with no interactions (gliph  interactions = 0)
 data_tcr_target_all <- data_tcr_target_all[data_tcr_target_all$gliph_status %in% "1",]
+```
+
+# 5. Create TCR network based on GLIPH interaction groups
+```{r}
+
+```
+
+
+
+
+# -----original network analysis code
+```{r}
+
 
 
 # Create GML file - Clonotype level network
