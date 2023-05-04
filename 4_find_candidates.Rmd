@@ -48,6 +48,24 @@ load("objects/processed_objects.RData")
 
 # Immune Repertoires
 
+# 1. BCR networks
+
+### a. create node dataframes
+```{r}
+bcr_df$patient <- tstrsplit(bcr_df$sample,"_")[[1]]
+
+bcr_node_df   <- createRepertoireNodeDataframe(bcr_df,assay = "bcr",
+                                             select.patients = "28",expansion.thresh = 2)
+bcr_node_df_hc <- createRepertoireNodeDataframe(bcr_df,assay = "bcr",
+                                             select.patients = "32",expansion.thresh = 2)
+bcr_node_df$compartment    <- tstrsplit(bcr_node_df$id,"_")[[2]]
+bcr_node_df_hc$compartment <- tstrsplit(bcr_node_df_hc$id,"_")[[2]]
+```
+
+### b. create edge data frames
+```{r}
+
+```
 
 # -----------------------------
 
