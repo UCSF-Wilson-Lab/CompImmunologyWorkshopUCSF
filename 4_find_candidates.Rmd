@@ -85,6 +85,43 @@ formatIgraphNetwork <- function(net,extra.size = TRUE,edge.width = 3) {
   
   return(net)
 }
+
+# format TCR GLIPH network
+#  - interactions are based on the GLIPH group, not clone ID
+formatIgraphNetworkGLIPH <- function(net,extra.size = TRUE,edge.width = 3,vertex.label.cex = 1) {
+  # Generate colors based on media type:
+  color_vec <- V(net)$patient
+  if("32" %in% color_vec){
+    color_vec[color_vec %in% "32"] <- "tomato"
+  }
+  if("28" %in% color_vec){
+    color_vec[color_vec %in% "28"]  <- "darkblue"
+  }
+  
+
+  V(net)$color <- color_vec
+  
+  # Set node size based on audience size:
+  size_vec <- log10(as.numeric(V(net)$clone_size)) + 5
+  if(extra.size){
+    size_vec[size_vec > 5] <- size_vec[size_vec > 5] + 5
+  }
+  V(net)$size <- size_vec
+
+  # Setting them to NA will render no labels:
+  V(net)$label       <- V(net)$net_node_label
+  V(net)$label.cex   <- vertex.label.cex
+  V(net)$label.color <- "black"
+  V(net)$label.font  <- 2
+  
+
+  #change arrow size and edge color:
+  E(net)$arrow.mode <- 0
+  E(net)$edge.color <- "black"
+  E(net)$width      <- edge.width
+  
+  return(net)
+}
 ```
 
 # 1. BCR networks
@@ -429,44 +466,52 @@ data_tcr_target_all <- data_tcr_target_all[data_tcr_target_all$gliph_status %in%
 ```
 
 # 5. Create TCR network based on GLIPH interaction groups
-```{r}
 
+### a. create network
+```{r}
+# Create Node dataframe
+tcr_gliph_node_df             <- createRepertoireNodeDataframe(data_tcr_target_all,assay = "tcr",
+                                                         clone.col = "gliph_group",
+                                                         prefix.clone.id = "gliph",
+                                                         expansion.thresh = 2)
+# add back in some info such as clonotype ID
+row.names(tcr_gliph_node_df) <- tcr_gliph_node_df$id
+
+extra_df <- data_tcr_target_all[data_tcr_target_all$locus %in% "TRB",]
+row.names(extra_df) <- extra_df$unique_cell_id
+extra_df            <- extra_df[,c("clone_id","patient","COMPARTMENT")]
+names(extra_df)[1]  <- "clone_id_vdj"
+
+tcr_gliph_node_df <- merge(tcr_gliph_node_df,extra_df,by=0)
+tcr_gliph_node_df[,1] <- NULL
+
+# Create labels for the network figure
+net_label_col <- tcr_gliph_node_df$clone_id
+for (grp in unique(net_label_col)) {
+  grp_sub <- net_label_col[net_label_col %in% grp]
+  grp_sub[2:length(grp_sub)] <- ""
+  net_label_col[net_label_col %in% grp] <- grp_sub
+}
+tcr_gliph_node_df$net_node_label <- net_label_col
+
+# Create Edge data frame
+tcr_gliph_edges         <- createRepertoireEdgeDataframe(tcr_gliph_node_df)
+
+# Create Network object
+tcr_gliph_net           <- graph_from_data_frame(d=tcr_gliph_edges, vertices=tcr_gliph_node_df, directed=F)
+tcr_gliph_net           <- formatIgraphNetworkGLIPH(tcr_gliph_net,extra.size = F,edge.width = 2,vertex.label.cex = 0.9)
+```
+
+### b. plot
+* red = healthy patient
+* blue = disease patient
+```{r}
+set.seed(seed.number)
+
+plot(tcr_gliph_net,layout = layout_with_fr, main = "TCR GLIPH Net - CSF highly expanded")
 ```
 
 
-
-
-# -----original network analysis code
-```{r}
-
-
-
-# Create GML file - Clonotype level network
-createGLIPH2clonotypeNetworkGML(
-  data_tcr   =  data_tcr_target_all,
-  result_dir = "4_FindCandidates/CSF_High_ClonotypeNetwork_GLIPH2",
-  output_name     = "gliph_cleaned_clusters_CSF_high_GLIPH2",
-  count_cutoff    =  as.numeric(2),  # UMI Count cut-off
-  distance_cutoff =  as.numeric(0),
-  method = "hamming",
-  cores = 4)
-```
-
-
-# 5. Create TCR clonotype connection network
-```{r}
-tcr_results_gliph_sub <- tcr_results_gliph[tcr_results_gliph$cell_count > 1,]
-createTCRnetworkGML(
-  data_tcr   =  tcr_results_gliph_sub,
-  result_dir = "4_FindCandidates/TCR_ClonotypeNetwork",
-  output_name     = "cleaned_clusters",
-  count_cutoff    =  as.numeric(2),  # UMI Count cut-off
-  distance_cutoff =  as.numeric(0),
-  method = "hamming",
-  cores = 4)
-
-
-```
 
 
 # 6. Format Results for a Query in VDJdb (CSF only)
@@ -477,7 +522,7 @@ format CSF TCR results for upload to VDJ db
 ```{r}
 # Transfer clonotype Freq back to full results
 tcr_results_csf <- tcr_results_gliph[tcr_results_gliph$COMPARTMENT %in% "CSF",]
-tcr_results_csf <- tcr_results_csf[tcr_results_csf$STATUS %in% "Disease",]
+tcr_results_csf <- tcr_results_csf[tcr_results_csf$patient %in% "28",]
 clonotype_freq    <- tcr_results_csf$clone_id
 clonotype_count   <- tcr_results_csf$clone_id
 
@@ -527,57 +572,56 @@ write.table(fmt_tcr_results,file = "4_FindCandidates/table_for_VDJdb_CSF.txt",qu
 ### a. BCR - assemble FR and CDRs for clonotypes of interest
 ```{r}
 # B cells
-target_bcr <- clone_counts_bcr[clone_counts_bcr$exp_category %in% "CSF_high_expanded",]
+target_bcr <- clone_counts_bcr[clone_counts_bcr$CSF_count >= 2,]
 target_bcr <- row.names(target_bcr)[1]
 
 # subset all cells in target clone (Heavy and Light chains)
-bcr_results$fmt_cell_id <- tstrsplit(bcr_results$sequence_id,"_contig")[[1]]
-target_bcr_df <- bcr_results[bcr_results$clone_id %in% target_bcr,] # heavy chains only
-target_bcr_df <- bcr_results[bcr_results$fmt_cell_id %in% target_bcr_df$fmt_cell_id,]
+target_bcr_df <- bcr_df[bcr_df$clone_id %in% target_bcr,] # heavy chains only
 
 # Subset columns
-cols_to_keep <- c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id",
+cols_to_keep <- c("unique_cell_id","locus","v_call","d_call","j_call","clone_id",
                   "fwr1","cdr1","fwr2","cdr2","fwr3","cdr3","fwr4")
 target_bcr_df <- target_bcr_df[,cols_to_keep]
 
 # concatenate sequences and remove gaps
-target_bcr_df$monoclonal_seq <- paste(target_bcr_df$fwr1,target_bcr_df$cdr1,
+target_bcr_df$antibody_seq <- paste(target_bcr_df$fwr1,target_bcr_df$cdr1,
                                       target_bcr_df$fwr2,target_bcr_df$cdr2,
                                       target_bcr_df$fwr3,target_bcr_df$cdr3,target_bcr_df$fwr4,sep = "")
-target_bcr_df$monoclonal_seq <- str_replace_all(target_bcr_df$monoclonal_seq,"\\.","")
+target_bcr_df$antibody_seq <- str_replace_all(target_bcr_df$antibody_seq,"\\.","")
 
-target_bcr_df_sub <- target_bcr_df[,c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id","monoclonal_seq")]
+target_bcr_df_sub <- target_bcr_df[,c("unique_cell_id","locus","v_call","d_call","j_call","clone_id","antibody_seq")]
 ```
 
 ### b. TCR - assemble FR and CDRs for clonotypes of interest
 ```{r}
 # T cells
-target_tcr <- clone_counts_tcr[clone_counts_tcr$exp_category %in% "CSF_high_expanded",]
+target_tcr <- clone_counts_tcr[clone_counts_tcr$CSF_PB_ratio > 1,]
 target_tcr <- target_tcr[order(target_tcr$CSF_PB_ratio,decreasing = T),]
 target_tcr <- row.names(target_tcr)[1]
 
-# subset all cells in target clone (Heavy and Light chains)
-tcr_results$fmt_cell_id <- tstrsplit(tcr_results$sequence_id,"_contig")[[1]]
-target_tcr_df <- tcr_results[tcr_results$clone_id %in% target_tcr,] # Alpha and Beta
+# subset all cells in target clone (Alpha and Beta chains)
+target_tcr_df <- tcr_df[tcr_df$clone_id %in% target_tcr,] # Alpha and Beta
 
 # Subset columns
-cols_to_keep <- c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id",
+cols_to_keep <- c("unique_cell_id","locus","v_call","d_call","j_call","clone_id",
                   "fwr1","cdr1","fwr2","cdr2","fwr3","cdr3","fwr4")
 target_tcr_df <- target_tcr_df[,cols_to_keep]
 
 # concatenate sequences and remove gaps
-target_tcr_df$monoclonal_seq <- paste(target_tcr_df$fwr1,target_tcr_df$cdr1,
-                                      target_tcr_df$fwr2,target_tcr_df$cdr2,
-                                      target_tcr_df$fwr3,target_tcr_df$cdr3,target_tcr_df$fwr4,sep = "")
-target_tcr_df$monoclonal_seq <- str_replace_all(target_tcr_df$monoclonal_seq,"\\.","")
+target_tcr_df$tcr_seq <- paste(target_tcr_df$fwr1,target_tcr_df$cdr1,
+                               target_tcr_df$fwr2,target_tcr_df$cdr2,
+                               target_tcr_df$fwr3,target_tcr_df$cdr3,target_tcr_df$fwr4,sep = "")
+target_tcr_df$tcr_seq <- str_replace_all(target_tcr_df$tcr_seq,"\\.","")
 
-target_tcr_df_sub <- target_tcr_df[,c("fmt_cell_id","locus","v_call","d_call","j_call","clone_id","monoclonal_seq")]
+target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call","j_call","clone_id","tcr_seq")]
 ```
 
 ### c. Other tools
 
 ### --stichr (TCRs only)
 * https://github.com/JamieHeather/stitchr
+* Only makes used of TCR Beta chains
+* This tool must be used in the terminal to access the GUI
 ```{bash}
 python3 stitchr.py -v TRBV7-6 -j TRBJ1-4 -cdr3 CASSSGQGLGEKLFF
 ```
