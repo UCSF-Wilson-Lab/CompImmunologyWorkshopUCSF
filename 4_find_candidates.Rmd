@@ -86,42 +86,6 @@ formatIgraphNetwork <- function(net,extra.size = TRUE,edge.width = 3) {
   return(net)
 }
 
-# format TCR GLIPH network
-#  - interactions are based on the GLIPH group, not clone ID
-formatIgraphNetworkGLIPH <- function(net,extra.size = TRUE,edge.width = 3,vertex.label.cex = 1) {
-  # Generate colors based on media type:
-  color_vec <- V(net)$patient
-  if("32" %in% color_vec){
-    color_vec[color_vec %in% "32"] <- "tomato"
-  }
-  if("28" %in% color_vec){
-    color_vec[color_vec %in% "28"]  <- "darkblue"
-  }
-  
-
-  V(net)$color <- color_vec
-  
-  # Set node size based on audience size:
-  size_vec <- log10(as.numeric(V(net)$clone_size)) + 5
-  if(extra.size){
-    size_vec[size_vec > 5] <- size_vec[size_vec > 5] + 5
-  }
-  V(net)$size <- size_vec
-
-  # Setting them to NA will render no labels:
-  V(net)$label       <- V(net)$net_node_label
-  V(net)$label.cex   <- vertex.label.cex
-  V(net)$label.color <- "black"
-  V(net)$label.font  <- 2
-  
-
-  #change arrow size and edge color:
-  E(net)$arrow.mode <- 0
-  E(net)$edge.color <- "black"
-  E(net)$width      <- edge.width
-  
-  return(net)
-}
 ```
 
 # 1. BCR networks
@@ -294,6 +258,48 @@ grid.arrange(p1,p2, nrow = 1)
 # -----------------------------
 
 # GLIPH2 Network Analysis
+
+# --function to format networks
+```{r}
+# format TCR GLIPH network
+#  - interactions are based on the GLIPH group, not clone ID
+formatIgraphNetworkGLIPH <- function(net,extra.size = TRUE,edge.width = 3,vertex.label.cex = 1) {
+  # Generate colors based on media type:
+  color_vec <- V(net)$patient
+  if("32" %in% color_vec){
+    color_vec[color_vec %in% "32"] <- "tomato"
+  }
+  if("28" %in% color_vec){
+    color_vec[color_vec %in% "28"]  <- "darkblue"
+  }
+  
+
+  V(net)$color <- color_vec
+  
+  # Set node size based on audience size:
+  size_vec <- log10(as.numeric(V(net)$clone_size)) + 5
+  if(extra.size){
+    size_vec[size_vec > 5] <- size_vec[size_vec > 5] + 5
+  }
+  V(net)$size <- size_vec
+
+  # Setting them to NA will render no labels:
+  V(net)$label       <- V(net)$net_node_label
+  V(net)$label.cex   <- vertex.label.cex
+  V(net)$label.color <- "black"
+  V(net)$label.font  <- 2
+  
+
+  #change arrow size and edge color:
+  E(net)$arrow.mode <- 0
+  E(net)$edge.color <- "black"
+  E(net)$width      <- edge.width
+  
+  return(net)
+}
+```
+
+
 
 # 1. Generate input files
 * Running GLIPH2 is optional, results files provided
