@@ -128,6 +128,20 @@ plot(bcr_net,layout = layout_with_kk, main = "BCR - Disease Patient")
 plot(bcr_hc_net,layout = layout_with_kk, main = "BCR - Healthy Patient")
 ```
 
+### d. Write GML file
+```{r}
+bcr_full_node_df             <- createRepertoireNodeDataframe(bcr_df,assay = "bcr",
+                                                              select.patients = c("32","28"),
+                                                              expansion.thresh = 2)
+bcr_full_node_df$compartment <- tstrsplit(bcr_full_node_df$id,"_")[[2]]
+bcr_full_edges               <- createRepertoireEdgeDataframe(bcr_full_node_df)
+bcr_full_net                 <- graph_from_data_frame(d=bcr_full_edges, vertices=bcr_full_node_df, directed=F)
+bcr_full_net                 <- formatIgraphNetwork(bcr_full_net)
+
+bcr_graph_all<- graph.data.frame(bcr_full_edges, directed=F,vertices=bcr_full_node_df)
+write.graph(bcr_graph_all, file = "4_FindCandidates/bcell_network.gml", format = "gml")
+```
+
 # 2. TCR networks - Expanded only
 
 T cell networks are a lot larger than B cell networks, therefore we will focus only on clonally expanded cells.
@@ -172,6 +186,21 @@ par(mfrow=c(1,2))
 plot(tcr_net,layout = layout_with_fr, main = "TCR - Disease Patient")
 plot(tcr_hc_net,layout = layout_with_fr, main = "TCR - Healthy Patient")
 ```
+
+### d. Write GML file
+```{r}
+tcr_exp_node_df             <- createRepertoireNodeDataframe(tcr_df_exp,assay = "tcr",
+                                                              select.patients = c("28","32"),
+                                                              expansion.thresh = 2)
+tcr_exp_node_df$compartment <- tstrsplit(tcr_exp_node_df$id,"_")[[2]]
+tcr_exp_edges               <- createRepertoireEdgeDataframe(tcr_exp_node_df)
+tcr_exp_net                 <- graph_from_data_frame(d=tcr_exp_edges, vertices=tcr_exp_node_df, directed=F)
+tcr_exp_net                 <- formatIgraphNetwork(tcr_exp_net,extra.size = F,edge.width = 1)
+
+tcr_graph_exp<- graph.data.frame(tcr_exp_edges, directed=F,vertices=tcr_exp_node_df)
+write.graph(tcr_graph_exp, file = "4_FindCandidates/tcell_expanded_network.gml", format = "gml")
+```
+
 
 # 3. TCR networks - CD8 Expanded only
 
