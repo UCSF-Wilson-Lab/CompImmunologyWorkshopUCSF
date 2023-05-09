@@ -44,6 +44,8 @@ library(impactSingleCellToolkit)
 # scRNA-Seq
 dataset_loc <- "data/gex"
 
+seed.number <- 123
+
 # Workshop specific functions
 source("resources/functions_workshop.R")
 ```
@@ -62,6 +64,8 @@ gex.matrix <- generateCombinedMatrix(dataset_loc, samples.vec,THREADS = 8,multi.
 
 #### 2. Create Seurat Object
 ```{r}
+set.seed(seed.number)
+
 # Create Seurat object
 seurat.obj <- createSeuratObjectFromMatrix(
   sc.data      = gex.matrix,
@@ -84,6 +88,8 @@ Needed to have the following CRAN packages updated:
   * spam
   * fields
 ```{r}
+set.seed(seed.number)
+
 seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
 ```
 
@@ -92,6 +98,8 @@ seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
 
 * optimal PCs = 13
 ```{r}
+set.seed(seed.number)
+
 # Omit Doublets 
 cells_to_keep  <- names(seurat.obj$doublet_finder[seurat.obj$doublet_finder %in% "Singlet"])
 seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
@@ -103,6 +111,8 @@ pc_elbowplot <- plotOptimalPCsforSeuratObject(seurat.obj)
 
 #### 5. Cell Type annotation
 ```{r}
+set.seed(seed.number)
+
 # Generate SingleR Results
 singler_results_list <- runSingleRcelltypeAnnot(seurat.obj,blueprintencode.annot = T,monaco.annot = T)
 
@@ -136,8 +146,6 @@ data <- FindVariableFeatures(seurat.obj, selection.method = "vst", nfeatures = 2
 top10 <- head(VariableFeatures(data), 10)
 plot1 <- VariableFeaturePlot(data)
 LabelPoints(plot = plot1, points = top10, repel = T)
-
-
 ```
 
 ##### b. omit clusters dominated by platelet genes

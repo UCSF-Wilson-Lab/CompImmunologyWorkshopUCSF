@@ -415,7 +415,3 @@ grid.arrange(p11,p12,nrow=2)
 save(rnaseq_obj,tcell_obj,bcell_obj,bcr_df,tcr_df,clone_counts_tcr,clone_counts_bcr,file = "objects/processed_objects.RData")
 ```
 
-# SAVE ENV - Temporary
-```{r}
-save(list = ls(),file = "objects/TEMP_ENV.RData")
-```
