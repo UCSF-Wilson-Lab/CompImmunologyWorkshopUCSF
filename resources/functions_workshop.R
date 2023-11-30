@@ -24,8 +24,8 @@ createCloneCountTable <- function(results,cellbarcode_col = "unique_cell_id") {
   results_pb  <- results[results$COMPARTMENT %in% "PB",]
   
   total_cells       <- length(unique(results[,cellbarcode_col]))
-  total_cells_csf   <- length(unique(results[,cellbarcode_col])) 
-  total_cells_pb    <- length(unique(results[,cellbarcode_col])) 
+  total_cells_csf   <- length(unique(results_csf[,cellbarcode_col])) 
+  total_cells_pb    <- length(unique(results_pb[,cellbarcode_col])) 
   
   for(clone in clonotype_list){
     clone_df         <- results[results$clone_id %in% clone,]
