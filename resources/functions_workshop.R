@@ -74,6 +74,105 @@ createCloneCountTable <- function(results,cellbarcode_col = "unique_cell_id") {
   return(clone_count_df)
 }
 
+# createPatientCloneCountTable 
+#  - input is immcantation results
+#  - Patient level version of createCloneCountTable
+createPatientCloneCountTable <- function(results,cellbarcode_col = "unique_cell_id",patient_col = "patient",timepoint_col = NULL) {
+  clonotype_vec  <- results$clone_id
+  patient_vec    <- results[,patient_col]
+  clonotype_list <- paste(patient_vec,clonotype_vec,sep = "-")
+  if(!is.null(timepoint_col)){
+    clonotype_list <- paste(clonotype_list,results[,timepoint_col],sep = "-")
+  }
+  
+  uni_patients <- tstrsplit(clonotype_list,"-")[[1]] %>% unique()
+  
+  clonotype_list          <- unique(clonotype_list)
+  
+  
+  # Initialize Clonotype count table
+  clone_count_df            <- as.data.frame(matrix(0,nrow = length(clonotype_list),ncol = 7))
+  names(clone_count_df)     <- c("cell_count","CSF_count","PB_count","pct_total","pct_CSF","pct_PB","CSF_PB_ratio")
+  row.names(clone_count_df) <- clonotype_list
+  
+  for (pt in uni_patients) {
+    results_pt <- results[ results[,patient_col] %in% pt,]
+    
+    # Cell count totals
+    results_csf <- results_pt[results_pt$COMPARTMENT %in% "CSF",]
+    results_pb  <- results_pt[results_pt$COMPARTMENT %in% "PB",]
+    
+    total_cells       <- length(unique(results_pt[,cellbarcode_col]))
+    total_cells_csf   <- length(unique(results_csf[,cellbarcode_col])) 
+    total_cells_pb    <- length(unique(results_pb[,cellbarcode_col])) 
+    
+    # filter clonotypes that contain this patient
+    pt_clonotype_list <- clonotype_list
+    names(pt_clonotype_list) <- tstrsplit(pt_clonotype_list,"-")[[1]]
+    pt_clonotype_list        <- pt_clonotype_list[names(pt_clonotype_list) %in% pt] %>% as.character()
+    
+    
+    for(clone_str in pt_clonotype_list){
+      clone            <- tstrsplit(clone_str,"-")[[2]]
+      ### timepoint
+      tp <- NULL
+      if(!is.null(timepoint_col)){tp <- tstrsplit(clone_str,"-")[[3]]}
+      
+      clone_df         <- results_pt[results_pt$clone_id %in% clone,]
+      if(!is.null(tp)){
+        clone_df <- clone_df[ clone_df[,timepoint_col] %in% tp,]
+      }
+      clone_cell_count <- length(unique(clone_df[,cellbarcode_col]))
+      
+      # Determine CSF and PB count
+      clone_csf_count <- 0
+      clone_pb_count  <- 0
+      clone_df_csf <- clone_df[clone_df$COMPARTMENT %in% "CSF",]
+      clone_df_pb  <- clone_df[clone_df$COMPARTMENT %in% "PB",]
+      
+      if(nrow(clone_df_csf) > 0){
+        clone_csf_count <- length(unique(clone_df_csf[,cellbarcode_col]))
+      }
+      if (nrow(clone_df_pb) > 0){
+        clone_pb_count <- length(unique(clone_df_pb[,cellbarcode_col]))
+      }
+      
+      # Calulate percentage of total clones in the patient
+      clone_pct     <- (clone_cell_count / total_cells) * 100  # patient/timepoint level denominators
+      clone_pct_csf <- (clone_csf_count / total_cells_csf) * 100
+      clone_pct_pb  <- (clone_pb_count / total_cells_pb) * 100
+      
+      # Calculate CSF:PB ratio
+      clone_pct_pb_ratio <- clone_pct_pb
+      if(clone_pb_count == 0){
+        clone_pct_pb_ratio  <- (1 / total_cells_pb) * 100
+      }
+      csf_pb_ratio <- clone_pct_csf / clone_pct_pb_ratio
+      
+      # Add clonotype results to data frame
+      results_row <- clone_count_df[row.names(clone_count_df) %in% clone_str,]
+      results_row$pct_total    <- clone_pct
+      results_row$pct_CSF      <- clone_pct_csf
+      results_row$pct_PB       <- clone_pct_pb
+      results_row$cell_count   <- clone_cell_count
+      results_row$CSF_count    <- clone_csf_count
+      results_row$PB_count     <- clone_pb_count
+      results_row$CSF_PB_ratio <- csf_pb_ratio
+      
+      clone_count_df[row.names(clone_count_df) %in% clone_str,] <- results_row
+    }
+  }
+  
+  # Add it patient and clone columns
+  clone_count_df$patient <- tstrsplit(row.names(clone_count_df),"-")[[1]]
+  if(!is.null(timepoint_col)){
+    clone_count_df$timepoint <- tstrsplit(row.names(clone_count_df),"-")[[3]]
+  }
+  clone_count_df$clone_id <- tstrsplit(row.names(clone_count_df),"-")[[2]]
+  
+  return(clone_count_df)
+}
+
 
 # addExpansionCategories - For each clonotype add an expansion category
 #    Highly expanded - cell count > 5
