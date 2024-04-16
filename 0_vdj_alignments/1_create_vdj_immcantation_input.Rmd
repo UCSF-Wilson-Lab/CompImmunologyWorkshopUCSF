@@ -1,7 +1,6 @@
 ---
 title: "Create Input for Immcantation"
 author: "Ravi Dandekar"
-date: "4/5/2023"
 output: html_document
 ---
 
@@ -24,9 +23,9 @@ library(impactSingleCellToolkit)
 
 
 ```{r}
-bcr_results_dir <- "/data/rdandekar/rprojects/BMS_Workshops/2023_BMS_Comp_Immunology_Workshop/data/bcr"
-tcr_results_dir <- "/data/rdandekar/rprojects/BMS_Workshops/2023_BMS_Comp_Immunology_Workshop/data/tcr"
-results_dir     <- "/data/rdandekar/rprojects/BMS_Workshops/2023_BMS_Comp_Immunology_Workshop/data/input_immcantation"
+bcr_results_dir <- "../data/bcr"
+tcr_results_dir <- "../data/tcr"
+results_dir     <- "../data/input_immcantation"
 ```
 
 

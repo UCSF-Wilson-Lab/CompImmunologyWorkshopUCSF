@@ -2,7 +2,7 @@
 
 # Goal: Generate results for 10X MS BCR & TCR data
 #  - there are two BCR and TCR samples
-#  - Immcantation v4.3.0 supports the analysis of these data (v4.4.0 had issues with BLASTP)
+#  - Immcantation v4.3.0 supports the analysis of these data (v4.5.0 had issues with BLASTP)
 
 # Immcantation Documentation:
 # https://immcantation.readthedocs.io/en/stable/
