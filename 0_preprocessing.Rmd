@@ -1,7 +1,6 @@
 ---
 title: "Pre-processing and creating analysis objects"
 author: "Ravi Dandekar"
-date: "4/6/2023"
 output: html_document
 ---
 
@@ -150,10 +149,11 @@ LabelPoints(plot = plot1, points = top10, repel = T)
 
 ##### b. omit clusters dominated by platelet genes
 
-* While preparing the workshop, cluster 13 & 23 were omitted in this section
+* While preparing the workshop, 2 clusters were omitted in this section
 
 ```{r}
 GENE_PANEL <- c("PPBP", "PF4")
+CUTOFF     <- 0.3
 
 # Check Platelet genes
 vln_plot_pre <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log = T,ncol = 1)
@@ -165,7 +165,7 @@ avg_exp_per_clus$sum_exp_zscore <- rowSums(avg_exp_per_clus)
 avg_exp_per_clus$sum_exp_zscore <- scale(avg_exp_per_clus$sum_exp_zscore)
 
 # Omit clusters (there were two clusters omitted)
-clusters_to_omit <- row.names(avg_exp_per_clus[avg_exp_per_clus$sum_exp_zscore > 0.8,])
+clusters_to_omit <- row.names(avg_exp_per_clus[avg_exp_per_clus$sum_exp_zscore > CUTOFF,])
 
 cells_to_keep  <- names(seurat.obj$seurat_clusters[! seurat.obj$seurat_clusters %in% clusters_to_omit])
 seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
