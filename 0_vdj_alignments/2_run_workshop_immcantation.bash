@@ -32,3 +32,15 @@ changeo-10x -s $READS_BCR -a $ANNOTATIONS_BCR -x 0.15 -n BCR_CSFPB -o $OUT_DIR_B
 
 # >>> TCR
 changeo-10x -s $READS_TCR -a $ANNOTATIONS_TCR -x 0.00 -n TCR_CSFPB -o $OUT_DIR_TCR -p $NPROC -t tr -m $MODEL -f airr
+
+
+# >>> process TCR Alpha chain results
+cd $OUT_DIR_TCR
+DefineClones.py -d TCR_CSFPB_light_productive-T_sc-pass.tsv --act first --model $MODEL --dist 0.00
+CreateGermlines.py -d TCR_CSFPB_light_productive-T_sc-pass_clone-pass.tsv -o TCR_CSFPB_light_germ-pass.tsv -g dmask --cloned -r /usr/local/share/germlines/imgt/human/vdj/imgt_human_TRA*
+
+# >>> process BCR light chain results
+cd $OUT_DIR_BCR
+DefineClones.py -d BCR_CSFPB_light_productive-T_sc-pass.tsv --act first --model $MODEL --dist 0.15
+CreateGermlines.py -d BCR_CSFPB_light_productive-T_sc-pass_clone-pass.tsv -o BCR_CSFPB_light_germ-pass.tsv -g dmask --cloned -r /usr/local/share/germlines/imgt/human/vdj/imgt_human_IG*
+
