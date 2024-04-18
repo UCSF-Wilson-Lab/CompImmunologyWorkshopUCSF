@@ -24,6 +24,7 @@ library(shazam)
 library(tigger)
 library(dowser)
 
+library(glmGamPoi)
 library(Seurat)
 library(DoubletFinder)
 library(SingleR)
@@ -95,7 +96,7 @@ seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
 
 #### 4. Omit doublets and re-cluster
 
-* optimal PCs = 13
+* The Elbow plot can help determine an appropriate number of PCs to use
 ```{r}
 set.seed(seed.number)
 
@@ -134,7 +135,7 @@ hp4
 
 #### 6. QC filtering
 
-Omit cells with a high % mitochondrial trancripts as well as cells with high expression of Platelet genes (PPBP and PF4)
+Omit cells with a high % mitochondrial transcripts as well as cells with high expression of Platelet genes (PPBP and PF4)
 
 ##### a. omit cells with a high % mitochondrial genes
 ```{r}
@@ -156,7 +157,7 @@ GENE_PANEL <- c("PPBP", "PF4")
 CUTOFF     <- 0.3
 
 # Check Platelet genes
-vln_plot_pre <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log = T,ncol = 1)
+vln_plot_pre <- VlnPlot(seurat.obj, features = GENE_PANEL, layer = "counts", log = T,ncol = 1)
 
 # Identify clusters with high expression of platelet genes
 avg_exp_per_clus <- AverageExpression(seurat.obj,features = GENE_PANEL,group.by = "seurat_clusters",assays = "SCT")
@@ -171,7 +172,7 @@ cells_to_keep  <- names(seurat.obj$seurat_clusters[! seurat.obj$seurat_clusters 
 seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
 
 # Check Violin plots after removing clusters
-vln_plot_post <- VlnPlot(seurat.obj, features = GENE_PANEL, slot = "counts", log = T,ncol = 1)
+vln_plot_post <- VlnPlot(seurat.obj, features = GENE_PANEL, layer = "counts", log = T,ncol = 1)
 ```
 
 

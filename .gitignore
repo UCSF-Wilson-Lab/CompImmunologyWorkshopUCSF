@@ -7,6 +7,9 @@
 .RData
 .rds
 
+# Misc
+Rplots.pdf
+
 # User-specific files
 .Ruserdata
 
