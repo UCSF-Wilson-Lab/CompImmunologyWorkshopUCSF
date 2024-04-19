@@ -20,7 +20,9 @@ library(alakazam)
 library(shazam)
 library(tigger)
 library(dowser)
+library(airr)
 
+library(glmGamPoi)
 library(Seurat)
 library(dittoSeq)
 library(reshape2)
@@ -67,11 +69,11 @@ rnaseq_obj <- readRDS("objects/seurat.obj.processed.rds")
 ### a. Load immcantations results
 ```{r}
 # TCR
-db.tra   <- readChangeoDb(tcr_alpha_fh) %>% as.data.frame()
-db.trb   <- readChangeoDb(tcr_beta_fh) %>% as.data.frame()
+db.tra   <- read_rearrangement(tcr_alpha_fh) %>% as.data.frame()
+db.trb   <- read_rearrangement(tcr_beta_fh) %>% as.data.frame()
 # BCR
-db.heavy <- readChangeoDb(bcr_heavy_fh) %>% as.data.frame()
-db.light <- readChangeoDb(bcr_light_fh) %>% as.data.frame()
+db.heavy <- read_rearrangement(bcr_heavy_fh) %>% as.data.frame()
+db.light <- read_rearrangement(bcr_light_fh) %>% as.data.frame()
 ```
 
 ### b. filter contigs and merge all chains
@@ -107,7 +109,7 @@ overlapping_cells <- cells_rnaseq[cells_rnaseq %in% cells_vdj]
 ### b. filter rnaseq and vdj data
 ```{r,fig.height=6,fig.width=11}
 # generate UMAP of cell type annotations pre-filtering
-p1_pre_filter <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
+p1_pre_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
 
 # only keep cells with vdj
 rnaseq_obj     <- rnaseq_obj[,colnames(rnaseq_obj) %in% overlapping_cells]
@@ -115,11 +117,12 @@ bcr_df         <- bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,]
 tcr_df         <- tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,]
 
 # post filter umap
-p2_post_filter <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
+p2_post_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
 plot_grid(p1_pre_filter,p2_post_filter,ncol = 2)
 ```
 
 # 4. Add columns to VDJ data
+* This code block gets stuck when running. To fix this press <enter> in the R console
 ```{r}
 # Add sample column
 tcr_df$sample <- tstrsplit(tcr_df$unique_cell_id,"-")[[2]]
@@ -128,17 +131,17 @@ bcr_df$sample <- tstrsplit(bcr_df$unique_cell_id,"-")[[2]]
 # Add column for CSF/PB 
 tcr_df$COMPARTMENT <- tstrsplit(tcr_df$sample,"_")[[2]]
 bcr_df$COMPARTMENT <- tstrsplit(bcr_df$sample,"_")[[2]]
-tcr_df$COMPARTMENT <- str_replace_all(tcr_df$COMPARTMENT,"PBMC","PB")
-bcr_df$COMPARTMENT <- str_replace_all(bcr_df$COMPARTMENT,"PBMC","PB")
+tcr_df$COMPARTMENT[tcr_df$COMPARTMENT %in% "PBMC"] <- "PB"
+bcr_df$COMPARTMENT[bcr_df$COMPARTMENT %in% "PBMC"] <- "PB"
 
 # Add Status Disease/Healthy
-tcr_df$STATUS                          <- tstrsplit(tcr_df$sample,"_")[[1]]
+tcr_df$STATUS <- tstrsplit(tcr_df$sample,"_")[[1]] %>% as.character()
 tcr_df$STATUS[tcr_df$STATUS %in% "32"] <- "Healthy"
 tcr_df$STATUS[tcr_df$STATUS %in% "28"] <- "Disease"
-bcr_df$STATUS                          <- tstrsplit(bcr_df$sample,"_")[[1]]
+
+bcr_df$STATUS <- tstrsplit(bcr_df$sample,"_")[[1]] %>% as.character()
 bcr_df$STATUS[bcr_df$STATUS %in% "32"] <- "Healthy"
 bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
-
 ```
 
 
@@ -148,8 +151,8 @@ set.seed(seed.number)
 rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:5,npca = 5,resolution = 0.3,
                                           normalize = F,dim.reduction = T)
 
-p3_reclustered <- UMAPPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=0.3, label = T)
-p4_reclustered <- UMAPPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=0.3, label = T)
+p3_reclustered <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 10,label = T,reduction = "umap")
+p4_reclustered <- DimPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=1.0,label.size = 10, label = T,reduction = "umap")
 
 plot_grid(p3_reclustered,p4_reclustered,ncol = 2)
 ```
@@ -175,9 +178,9 @@ rnaseq_obj$status[rnaseq_obj$status %in% "28"] <- "Disease"
 loc_cols       = c("CSF" = "blue", "PB" = "red")
 diagnosis_cols = c("Disease" = "purple","Healthy" = "orange")
 
-p1 <- UMAPPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=0.3, label = T)
-p2 <- UMAPPlot(object = rnaseq_obj, group.by="compartment", pt.size=0.3, label = F,cols = loc_cols)
-p3 <- UMAPPlot(object = rnaseq_obj, group.by="status", pt.size=0.3, label = F,cols = diagnosis_cols)
+p1 <- DimPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
+p2 <- DimPlot(object = rnaseq_obj, group.by="compartment", pt.size=1.0, label.size = 10, alpha = 0.7,label = F,cols = loc_cols,reduction = "umap")
+p3 <- DimPlot(object = rnaseq_obj, group.by="status", pt.size=1.0, label.size = 10,alpha = 0.7,label = F,cols = diagnosis_cols,reduction = "umap")
 
 plot_grid(p1,p2,p3,ncol = 3)
 ```
@@ -221,8 +224,8 @@ main_annot[main_annot %in% tcr_df$unique_cell_id] <- "T cells"
 names(main_annot) <- names(rnaseq_obj$orig.ident)
 rnaseq_obj$main.celltype.annot <- main_annot
 
-p4 <- UMAPPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=0.3, label = T)
-p5 <- UMAPPlot(object = rnaseq_obj, group.by="main.celltype.annot", pt.size=0.3, label = T)
+p4 <- DimPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
+p5 <- DimPlot(object = rnaseq_obj, group.by="main.celltype.annot", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
 
 plot_grid(p4,p5, ncol = 2)
 ```
@@ -240,7 +243,9 @@ plot_grid(p6,p4,ncol = 2,rel_heights = c(8,6),rel_widths = c(6,6))
 ```
 
 ### b. Define T cell subtypes based on CD8 gene expression & SingleR annotations
-
+* CD8 T cells are much higher in automated SingleR annotations
+* In addition, there are cell types which are mis-annotated as Macrophages, Monocytes and NK cells
+* Mis-annotated celltype cluster with B cells
 ```{r,fig.height=6,fig.width= 10}
 # SingleR Encode annotatons
 singler_annot_df <- rnaseq_obj@meta.data[,c("sample","seurat_clusters","main_bencode","fine_bencode","main.celltype.annot")]
@@ -390,6 +395,7 @@ tcell_obj <- rnaseq_obj[,cells]
 ```
 
 ### b. sample breakdown
+* Disease Patient has an increased proportion of B cells in the CSF of which most are memory B cells
 ```{r,fig.height=6, fig.width=7,echo=FALSE,warning=FALSE}
 p11 <- dittoBarPlot(rnaseq_obj, "sub.celltype.annot", group.by = "status.compartment", main = "All cells",color.panel = dittoColors()[1:4])
 p12 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartment", main = "B cells",color.panel = dittoColors()[3:4])
@@ -399,6 +405,7 @@ plot_grid(p11,p12,nrow=2,align = "v")
 ```
 
 ### c. clonotype expansion breakdown
+* Expanded T cell populations are observed in all compartments, while expanded B cells show more restriction
 ```{r,fig.height=6, fig.width=7,echo=FALSE,warning=FALSE}
 p11 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
 p12 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
@@ -411,7 +418,6 @@ grid.arrange(p11,p12,nrow=2)
 
 # SAVE Processed objects
 ```{r}
-# 2022 command
 save(rnaseq_obj,tcell_obj,bcell_obj,bcr_df,tcr_df,clone_counts_tcr,clone_counts_bcr,file = "objects/processed_objects.RData")
 ```
 

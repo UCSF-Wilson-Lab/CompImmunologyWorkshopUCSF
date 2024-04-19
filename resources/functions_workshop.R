@@ -44,10 +44,10 @@ createCloneCountTable <- function(results,cellbarcode_col = "unique_cell_id") {
       clone_pb_count <- length(unique(clone_df_pb[,cellbarcode_col]))
     }
     
-    # Calulate percentage of total clones in the patient
+    # Calculate percentage of total clones in the patient
     clone_pct     <- (clone_cell_count / total_cells) * 100
-    clone_pct_csf <- (clone_csf_count / total_cells_csf) * 100
-    clone_pct_pb  <- (clone_pb_count / total_cells_pb) * 100
+    clone_pct_csf <- (clone_csf_count / total_cells) * 100
+    clone_pct_pb  <- (clone_pb_count / total_cells) * 100
     
     # Calculate CSF:PB ratio
     clone_pct_pb_ratio <- clone_pct_pb
