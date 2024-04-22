@@ -19,6 +19,7 @@ library(alakazam)
 library(shazam)
 library(tigger)
 
+library(glmGamPoi)
 library(Seurat)
 library(dittoSeq)
 library(reshape2)
@@ -64,6 +65,7 @@ bcell_obj_csfpb$expansion.subtype <- paste(bcell_obj_csfpb$expansion_category,bc
 * With RNA-Seq alone, it is hard to separate out clonotypes
 
 #### V genes
+* There is some indication that cells with the same V genes group together, but the patterns are hard to distinguish
 ```{r,fig.height=7,fig.width=10}
 genes_bcells             <- row.names(bcell_obj_csfpb)
 vgenes_bcells            <- sort(genes_bcells[grep("IGHV",genes_bcells)])
@@ -79,6 +81,8 @@ h1 <- dittoHeatmap(bcell_obj_csfpb, genes = vgenes_bcells,
 ```
 
 #### Other Ig genes
+* Elevated IgM expression among B cells
+* There is some level of grouping of CSF cells with IgA1 and IgG 
 ```{r,fig.height=5,fig.width=10}
 genes_bcells             <- row.names(bcell_obj_csfpb)
 other_ig_genes_bcells    <- sort(genes_bcells[grep("IGHA|IGHG|IGHM|IGHD",genes_bcells)])
@@ -97,7 +101,7 @@ h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
 
 # 3. Differential Gene Expression
 
-* If it slows down, pre-load DGE results for CSF vs. PB
+* If it slows down, pre-load DGE results for CSF vs. PB and skip code block 3a
 ```{r}
 load("objects/csf_vs_pb_DGE.RData")
 ```
@@ -123,8 +127,7 @@ dge_compartment_bcells <- dge_compartment_bcells_all[dge_compartment_bcells_all$
 top_genes_bcells       <- dge_compartment_bcells %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-#### Heatmaps
-
+#### Heatmaps - T cells
 ```{r,fig.height=6,fig.width=9}
 p1 <- dittoHeatmap(tcell_obj, genes = top_genes_tcells$gene,
         annot.by = c("compartment","status", "sub.celltype.annot"),
@@ -133,8 +136,15 @@ p1 <- dittoHeatmap(tcell_obj, genes = top_genes_tcells$gene,
         show_rownames = FALSE,
         cluster_cols = FALSE,
         main = "CSF vs. PB T cells")
+
+# CSF vs PB
+p1.2 <- DoHeatmap(tcell_obj,features = top_genes_tcells$gene)
+
+p1
+p1.2
 ```
 
+#### Heatmaps - B cells
 ```{r,fig.height=6,fig.width=9}
 p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
         annot.by = c("compartment","status", "sub.celltype.annot"),
@@ -143,6 +153,12 @@ p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
         show_rownames = FALSE,
         cluster_cols = FALSE,
         main = "CSF vs. PB B cells")
+
+# CSF vs PB
+p2.2 <- DoHeatmap(bcell_obj,features = top_genes_bcells$gene)
+
+p2
+p2.2
 ```
 
 #### Volcano Plots
@@ -166,10 +182,12 @@ levels(tcell_obj_csf) <- c("Expanded CD8 T cells","Non-expanded CD8 T cells","Ex
 dge_tcell_csf   <- FindAllMarkers(tcell_obj_csf,logfc.threshold = 0.1,test.use = "wilcox")
 dge_tcell_csf   <- dge_tcell_csf[dge_tcell_csf$p_val_adj < 0.05,]
 top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
-
-DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
 ```
 
+#### -plot T cells
+```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
+DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
+```
 
 
 
@@ -186,7 +204,10 @@ levels(bcell_obj_csfpb) <- complete_order_sub
 dge_bcell_csfpb   <- FindAllMarkers(bcell_obj_csfpb,logfc.threshold = 0.1,test.use = "wilcox")
 dge_bcell_csfpb   <- dge_bcell_csfpb[dge_bcell_csfpb$p_val_adj < 0.05,]
 top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
+```
 
+#### -plot B cells
+```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
 DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF High vs. Non-Expanded") + coord_flip()
 ```
 
@@ -342,5 +363,5 @@ tcell_upset_plot
 
 # SAVE ENV - Temporary
 ```{r}
-save(list = ls(),file = "objects/TEMP_ENV.RData")
+save(list = ls(),file = "objects/TEMP_ENV.2.RData")
 ```
