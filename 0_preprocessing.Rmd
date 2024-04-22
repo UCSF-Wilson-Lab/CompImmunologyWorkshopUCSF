@@ -1,6 +1,5 @@
 ---
 title: "Pre-processing and creating analysis objects"
-author: "Ravi Dandekar"
 output: html_document
 ---
 
