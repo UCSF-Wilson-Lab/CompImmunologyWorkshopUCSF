@@ -226,11 +226,11 @@ library(ggupset)
 ```
 
 ### a. B cells Memory
-```{r,fig.height=6, fig.width=11,echo=TRUE,warning=FALSE}
+```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
-target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Memory B-cells"),]
+target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Memory B-cells","Non-expanded Memory B-cells"),]
 
 # Convert gene names to Entrez IDs
 de_genes <- mapIds(org.Hs.eg.db, target_genes$gene, 'ENTREZID', 'SYMBOL')
@@ -287,14 +287,6 @@ p2_bcell <- heatplot(edox, foldChange=de_fc_list, showCategory=14)
 plot_grid(p1_bcell,p2_bcell,ncol = 2)
 ```
 
-#### Upset plot
-* bars = number of DE genes
-* by default it only shows 10 pathways
-```{r,fig.height=5,fig.width=7}
-bcell_upset_plot <-upsetplot(edo)
-bcell_upset_plot
-```
-
 
 ### b. T cells CD8
 ```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
@@ -330,13 +322,13 @@ barplot(tcell_pathways, showCategory=10)
 ```
 
 #### Network of genes shared between pathways
-```{r,fig.height=10, fig.width=15,echo=TRUE,warning=FALSE}
+```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
 tcell_pathways_net <- pairwise_termsim(tcell_pathways,showCategory = 25)
 emapplot(tcell_pathways_net, showCategory = 25,repel = T,cex_label_group = 0.5,layout = "kk")
 ```
 
 #### Network of Pathways and genes (DisGeNET database)
-```{r,fig.height=8,fig.width=15}
+```{r,fig.height=5,fig.width=10}
 edo <- enrichDGN(as.list(de))
 de_fc_list <- sort(de_fc_list,decreasing = T)
 
@@ -352,16 +344,4 @@ p2_tcell <- heatplot(edox, foldChange=de_fc_list, showCategory=25)
 plot_grid(p1_tcell,p2_tcell,ncol = 2)
 ```
 
-#### Upset plot
-```{r,fig.height=5,fig.width=7}
-tcell_upset_plot <-upsetplot(edo)
-tcell_upset_plot
-```
 
-
-
-
-# SAVE ENV - Temporary
-```{r}
-save(list = ls(),file = "objects/TEMP_ENV.2.RData")
-```
