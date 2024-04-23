@@ -19,6 +19,9 @@ library(shazam)
 library(tigger)
 library(dowser)
 
+# scRepertoire
+library(scRepertoire)
+
 library(Seurat)
 library(dittoSeq)
 library(reshape2)
@@ -33,15 +36,25 @@ library(dplyr)
 library(ggpubr) # just added
 library(impactSingleCellToolkit)
 
+# Input files
+processed_objects_fh <- "objects/processed_objects.RData"
+input_bcr_fh         <- "data/input_immcantation/input_bcr_filtered_contig_annotations.csv"
+input_tcr_fh         <- "data/input_immcantation/input_tcr_filtered_contig_annotations.csv"
+
 seed.number <- 123456
 
 source("resources/functions_workshop.R")
 ```
 
 
-# 1. Load Processed Objects
+# Load Processed Objects
+
+# 1. load processed dataframes and objects
 ```{r}
-load("objects/processed_objects.RData")
+load(processed_objects_fh)
+
+# Add unique_cell_id column to seurat objects
+bcell_obj$unique_cell_id <- row.names(bcell_obj@meta.data)
 
 # Remove cells with no annotations (2 cells)
 tcr_df <- tcr_df[! tcr_df$SUBTYPE_ANNOTATION %in% "No Annot",]
@@ -53,13 +66,71 @@ tcr_df$j_call <- tstrsplit(tcr_df$j_call,"\\*")[[1]]
 bcr_df$v_call <- tstrsplit(bcr_df$v_call,"\\*")[[1]]
 bcr_df$j_call <- tstrsplit(bcr_df$j_call,"\\*")[[1]]
 
+# Add in chain columns
+bcr_df$chain <- bcr_df$locus
+tcr_df$chain <- tcr_df$locus
+
 # For B cells, IgSeq analyses are done on the Heavy chain only
 bcr_results_igh <- bcr_df[bcr_df$locus %in% "IGH",]
 ```
 
-# Immcantation
+# 2. input BCR - scRepertoire 
+```{r}
+input_bcr_df <- read.csv(input_bcr_fh,stringsAsFactors = F)
 
-# 2. Rank diversity
+# unique_cell_id
+barcode_vec <- tstrsplit(input_bcr_df$barcode,"-")[[1]]
+sample_vec  <- tstrsplit(input_bcr_df$contig_id,":")[[1]]
+input_bcr_df$unique_cell_id <- paste(barcode_vec,sample_vec,sep = "-")
+
+# Overlap with Seurat Object
+input_bcr_df <- input_bcr_df[input_bcr_df$unique_cell_id %in% colnames(bcell_obj),]
+input_bcr_df <- input_bcr_df[input_bcr_df$contig_id %in% bcr_df$sequence_id,]
+input_bcr_df$sample <- tstrsplit(input_bcr_df$unique_cell_id,"-")[[2]]
+
+# Create scRepertoire dataframe list
+bcr.list    <- split(input_bcr_df,input_bcr_df$sample)
+uni_samples <- unique(input_bcr_df$sample)
+uni_ids    <- tstrsplit(uni_samples,"_")[[1]]
+
+bcell_screp <- combineBCR(bcr.list, 
+                        samples = uni_samples,
+                        ID = uni_ids)
+```
+
+
+# 3. input TCR - scRepertoire
+```{r}
+# Load one contig file
+input_tcr_df <- read.csv(input_tcr_fh,stringsAsFactors = F)
+
+# unique_cell_id
+barcode_vec <- tstrsplit(input_tcr_df$barcode,"-")[[1]]
+sample_vec  <- tstrsplit(input_tcr_df$contig_id,":")[[1]]
+input_tcr_df$unique_cell_id <- paste(barcode_vec,sample_vec,sep = "-")
+
+# Overlap with Seurat Object
+input_tcr_df <- input_tcr_df[input_tcr_df$unique_cell_id %in% colnames(tcell_obj),]
+input_tcr_df <- input_tcr_df[input_tcr_df$contig_id %in% tcr_df$sequence_id,]
+input_tcr_df$sample <- tstrsplit(input_tcr_df$unique_cell_id,"-")[[2]]
+
+# Create scRepertoire dataframe list
+tcr.list    <- split(input_tcr_df,input_tcr_df$sample)
+uni_samples <- unique(input_tcr_df$sample)
+uni_ids     <- tstrsplit(uni_samples,"_")[[1]]
+
+tcell_screp <- combineTCR(tcr.list, 
+                        samples = uni_samples, 
+                        ID = uni_ids)
+```
+
+
+# scRepertoire Analysis
+
+
+# Immcantation Analysis
+
+# 1. Rank diversity
 
 https://alakazam.readthedocs.io/en/stable/vignettes/Diversity-Vignette/
 
@@ -125,7 +196,7 @@ panel2_rank_curves
 
 
 
-# 3. V/J usage T cells
+# 2. V/J usage T cells
 ```{r}
 vfamily <- countGenes(tcr_results_csf, gene="v_call", groups=c("SUBTYPE_ANNOTATION", "STATUS"), 
                      clone="clone_id", mode="family")
@@ -159,7 +230,7 @@ g2 <- ggplot(jfamily, aes(x=gene, y=clone_freq)) +
 plot_grid(g1,g2,nrow=2)
 ```
 
-# 4. C usage B cells
+# 3. C usage B cells
 ```{r}
 bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
 bcr_results_igh_pb  <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "PB",]
@@ -197,7 +268,7 @@ g2 <- ggplot(cfamily_pb, aes(x=gene, y=clone_freq)) +
 plot_grid(g1,g2,nrow=2)
 ```
 
-# 5. B cell Alpha Diversity 
+# 4. B cell Alpha Diversity 
 
 * Local species diversity (in this case, used for B & T cell populations)
 
@@ -249,7 +320,7 @@ panel_ad <- plot_grid(a1,a4,a3,nrow = 1)
 panel_ad
 ```
 
-# 6. T cell Alpha Diversity
+# 5. T cell Alpha Diversity
 
 ### a. generate diversity results for T cell subtypes(CSF vs. PB)
 ```{r}
@@ -285,7 +356,7 @@ panel_tcr_ad
 ```
 
 
-# 7. Mutational Profile of B cells
+# 6. Mutational Profile of B cells
 
 * Counts Replacement and Silent mutations across CDR and FWR regions
 * Can specify specific regions and type of mutation (R/S)
@@ -326,7 +397,7 @@ g2 <- ggplot(bcr_pb_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
 grid.arrange(g1,g2,nrow=2)
 ```
 
-# 8. Mutational hot spots Observed among all 5-mers - B cells
+# 7. Mutational hot spots Observed among all 5-mers - B cells
 
 * known 5-mer motifs observed in literature are highlighted in color (https://www.frontiersin.org/articles/10.3389/fimmu.2013.00358/full)
     * WA/TW
@@ -353,7 +424,7 @@ m4 <- plotMutability(model_disease, nucleotides="T", style="hedgehog")
 ```
 
 
-# 9. Trees - B cells
+# 8. Trees - B cells
 
 * Dowser
 https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
