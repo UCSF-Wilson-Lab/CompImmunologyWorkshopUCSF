@@ -38,6 +38,7 @@ library(impactSingleCellToolkit)
 
 # Input files
 processed_objects_fh <- "objects/processed_objects.RData"
+imm_heavy_results_fh <- "data/results_immcantation/BCR_CSFPB_heavy_germ-pass.tsv"
 input_bcr_fh         <- "data/input_immcantation/input_bcr_filtered_contig_annotations.csv"
 input_tcr_fh         <- "data/input_immcantation/input_tcr_filtered_contig_annotations.csv"
 
@@ -288,6 +289,33 @@ clonalDiversity(tcell_screp,
 
 
 # Immcantation Analysis
+
+https://bitbucket.org/kleinstein/immcantation/src/master/training/10x_tutorial.md
+
+# 1. Hamming Distances across BCR data
+```{r}
+bcr_data <- read.delim(imm_heavy_results_fh,stringsAsFactors = F)
+
+dist_nearest <- distToNearest(bcr_results_igh)
+
+# Automated Thresholding - takes too long to run
+#threshold_output <- shazam::findThreshold(dist_nearest$dist_nearest,
+#                                  method = "gmm", model = "gamma-norm",
+#                                  cutoff = "user",spc = 0.99)
+#threshold <- threshold_output@threshold
+
+# generate Hamming distance histogram
+p1 <- ggplot2::ggplot(subset(dist_nearest, !is.na(dist_nearest)),
+             aes(x = dist_nearest)) +
+        geom_histogram(color = "white", binwidth = 0.02) +
+        labs(x = "Hamming distance", y = "Count") +
+        scale_x_continuous(breaks = seq(0, 1, 0.1)) +
+        theme_bw() +
+        theme(axis.title = element_text(size = 18))
+plot(p1)
+
+```
+
 
 # 1. Rank diversity
 
