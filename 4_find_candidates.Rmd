@@ -11,27 +11,28 @@ knitr::opts_chunk$set(echo = TRUE)
   * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
 
-```{r,warning=FALSE}
+```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
 
 # Immcantation
-library(alakazam)
-library(shazam)
-library(tigger)
-library(dowser)
+suppressPackageStartupMessages(library(alakazam))
+suppressPackageStartupMessages(library(shazam))
+suppressPackageStartupMessages(library(tigger))
+suppressPackageStartupMessages(library(dowser))
 
-library(Seurat)
-library(dittoSeq)
-library(reshape2)
-library(kableExtra)
-library(devtools)
-library(data.table)
-library(ggplot2)
-library(RColorBrewer)
-library(gridExtra)    # grid.arrange()
-library(dplyr)
-library(igraph)
-library(impactSingleCellToolkit)
+suppressPackageStartupMessages(library(glmGamPoi))
+suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(dittoSeq))
+suppressPackageStartupMessages(library(reshape2))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(devtools))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(cowplot))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(impactSingleCellToolkit))
 
 seed.number <- 1234
 

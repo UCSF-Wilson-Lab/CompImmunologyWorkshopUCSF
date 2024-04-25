@@ -10,31 +10,31 @@ knitr::opts_chunk$set(echo = TRUE)
 * Before starting set working directory to the CompImmunologyWorkshopUCSF folder
   * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
-```{r,echo=FALSE,warning=FALSE}
+```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
 
 # Immcantation
-library(alakazam)
-library(shazam)
-library(tigger)
-library(dowser)
+suppressPackageStartupMessages(library(alakazam))
+suppressPackageStartupMessages(library(shazam))
+suppressPackageStartupMessages(library(tigger))
+suppressPackageStartupMessages(library(dowser))
 
 # scRepertoire
-library(scRepertoire)
+suppressPackageStartupMessages(library(scRepertoire))
 
-library(Seurat)
-library(dittoSeq)
-library(reshape2)
-library(kableExtra)
-library(devtools)
-library(data.table)
-library(ggplot2)
-library(RColorBrewer)
-library(gridExtra)    # grid.arrange()
-library(cowplot)
-library(dplyr)
-library(ggpubr) # just added
-library(impactSingleCellToolkit)
+suppressPackageStartupMessages(library(glmGamPoi))
+suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(dittoSeq))
+suppressPackageStartupMessages(library(reshape2))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(devtools))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(cowplot))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(impactSingleCellToolkit))
 
 # Input files
 processed_objects_fh <- "objects/processed_objects.RData"

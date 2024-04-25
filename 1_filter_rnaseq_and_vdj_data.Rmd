@@ -12,29 +12,29 @@ GOAL: annotate cell types and define expanded clonotypes (B cells and T cells)
 * Before starting set working directory to the CompImmunologyWorkshopUCSF folder
   * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
-```{r,echo=FALSE,warning=FALSE}
+```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
 
 # Immcantation
-library(alakazam)
-library(shazam)
-library(tigger)
-library(dowser)
-library(airr)
+suppressPackageStartupMessages(library(alakazam))
+suppressPackageStartupMessages(library(shazam))
+suppressPackageStartupMessages(library(tigger))
+suppressPackageStartupMessages(library(dowser))
+suppressPackageStartupMessages(library(airr))
 
-library(glmGamPoi)
-library(Seurat)
-library(dittoSeq)
-library(reshape2)
-library(kableExtra)
-library(devtools)
-library(data.table)
-library(ggplot2)
-library(RColorBrewer)
-library(gridExtra)    # grid.arrange()
-library(cowplot)
-library(dplyr)
-library(impactSingleCellToolkit)
+suppressPackageStartupMessages(library(glmGamPoi))
+suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(dittoSeq))
+suppressPackageStartupMessages(library(reshape2))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(devtools))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(cowplot))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(impactSingleCellToolkit))
 
 # Immcantation Results
 bcr_heavy_fh <- "data/results_immcantation/BCR_CSFPB_heavy_germ-pass.tsv"
