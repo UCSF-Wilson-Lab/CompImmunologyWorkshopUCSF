@@ -294,7 +294,7 @@ https://bitbucket.org/kleinstein/immcantation/src/master/training/10x_tutorial.m
 
 # 1. CDR3 AA Hamming Distances across BCR data
 * These samples were part of a larger study
-* An automated threshold of 0.15 was outputted for the full cohort and was also used for this subset of samples 
+* An automated threshold (using the GMM method) of 0.15 was outputted for the full cohort and was also used for this subset of samples 
 ```{r}
 dist_nearest <- distToNearest(bcr_results_igh)
 
@@ -578,13 +578,13 @@ panel_tcr_ad2 <- plot_grid(a9,a10,nrow = 1)
 panel_tcr_ad2
 ```
 
-
 # 7. Mutational Profile of B cells
 
 * Counts Replacement and Silent mutations across CDR and FWR regions
 * Can specify specific regions and type of mutation (R/S)
 * Further exploration: https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
 
+### a. generate mutation counts
 ```{r}
 set.seed(seed.number)
 
@@ -604,8 +604,31 @@ bcr_pb_obs <- observedMutations(bcr_results_igh_pb, sequenceColumn="sequence_ali
                             nproc=4)
 ```
 
+### b. plot clonotype mutations - median mutation freq
+* Far more mutations in PB when considering the scale
+```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
+# CSF 
+bcr_csf_mut_freq_clone <- bcr_csf_obs %>%
+                    dplyr::group_by(clone_id) %>%
+                    dplyr::summarize(median_mut_freq = median(mu_freq))
 
-```{r,fig.height=7, fig.width=11,echo=TRUE,warning=FALSE}
+bcr_pb_mut_freq_clone <- bcr_pb_obs %>%
+                    dplyr::group_by(clone_id) %>%
+                    dplyr::summarize(median_mut_freq = median(mu_freq))
+
+p_mut_csf <- ggplot(bcr_csf_mut_freq_clone, aes(median_mut_freq)) +
+  geom_histogram(binwidth = 0.005) +
+  theme_bw() + theme(axis.title = element_text(size = 18)) + ggtitle("CSF - Median clonotype mutations")
+
+p_mut_pb <- ggplot(bcr_pb_mut_freq_clone, aes(median_mut_freq)) +
+  geom_histogram(binwidth = 0.005) +
+  theme_bw() + theme(axis.title = element_text(size = 18)) + ggtitle("PB - Median clonotype mutations")
+
+plot_grid(p_mut_pb,p_mut_csf,ncol = 2)
+```
+
+### c. boxplot across different sub-classes
+```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
 g1 <- ggplot(bcr_csf_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
     theme_bw() + ggtitle("BCR CSF Total mutations") +
     xlab("Isotype") + ylab("Mutation frequency") +
@@ -661,7 +684,8 @@ https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
 # No BCR clones of sufficient size for making trees with dowser
 input_trees            <- bcr_df
 input_trees$subject_id <- tstrsplit(input_trees$sample,"_")[[1]]
-clones                 <-  formatClones(input_trees,minseq = 2)
+clones                 <-  formatClones(input_trees,minseq = 2, nproc = 4)
+
 print(clones)
 ```
 
