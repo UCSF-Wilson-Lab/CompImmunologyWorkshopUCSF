@@ -37,13 +37,14 @@ seed.number <- 1234
 
 # GLIPH2 results directory
 results_dir_gliph2 <- "4_FindCandidates/all_CSF_GLIPH2"
+dir.create(results_dir_gliph2,recursive = T)
 
 source("resources/functions_workshop.R")
 ```
 
 
 # 1. Load Processed Objects
-```{r}
+```{r,warning=FALSE}
 load("objects/processed_objects.RData")
 ```
 
@@ -252,7 +253,7 @@ clone_counts_tcr_disease <- createCloneCountTable(tcr_df[tcr_df$patient %in% "28
 clone_counts_bcr_disease <- createCloneCountTable(bcr_df[bcr_df$patient %in% "28",])
 
 # Add column of CSF expanded/Other
-CSF_PB_RATIO_THRESH = 2
+CSF_PB_RATIO_THRESH = 1.5
 
 # TCR
 csf_high <- clone_counts_tcr_disease[clone_counts_tcr_disease$PB_count <= 1 & clone_counts_tcr_disease$CSF_PB_ratio >= CSF_PB_RATIO_THRESH,]
@@ -274,7 +275,7 @@ clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
 * Most B cell clonotypes are 1 cell either in the CSF or PB
-```{r,fig.height=5, fig.width=15,echo=FALSE,warning=FALSE}
+```{r,fig.height=3, fig.width=7,echo=FALSE,warning=FALSE}
 # TCR 
 p1 <- ggplot(clone_counts_tcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
 
@@ -345,8 +346,9 @@ generateGLIPH2inputFiles(tcr_df_csf,results.dir = results_dir_gliph2)
 # 2. Run GLIPH2 in the terminal (OPTIONAL)
 
 ### a. Format input parameter file
-* parameter files have been provided as part of the workshop
-* Example: parameter file will include the following lines:
+* GLIPH2 input files have been provided as part of the workshop
+* Input parameter file: 4_FindCandidates/all_CSF_GLIPH2/param_file_gliph2.cfg
+* Example: parameter file was manually created with the following lines:
 ```{bash}
 out_prefix=AllCSF
 cdr3_file=TCR_input_table.GLIPH2.tsv
@@ -364,7 +366,7 @@ all_aa_interchangeable=1
 ```
 
 * To inlcude HLA genotypes, create a TSV with all class 1 and 2 alleles (1 row per patient)
-* Example: adding HLA geneotypes in parameter file:
+* Example: adding HLA geneotypes in parameter file (param_file_gliph2.cfg):
 ```{bash}
 hla_file=HLA_table_formatted_GLIPH.class1and2.tab
 ```
@@ -392,7 +394,7 @@ tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,cl
 tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,clone_counts = clone_counts_tcr,target.col = "CSF_count",new.col.name = "CSF_count")
 ```
 
-# 3. Add GLIPH results into mAb table
+# 3. Add GLIPH results into TCR table
 
 ### a. GLIPH status 
 ```{r}
@@ -447,17 +449,17 @@ tcr_results_gliph$gliph_group <- index_col
 
 # 4. Filter TCR and GLIPH data based on highly expanded CSF clones
 ```{r}
+THRESH <- 0.75  # CSF:PB ratio threshold for TCR
+
 clonotype_counts_csf     <- clone_counts_tcr[clone_counts_tcr$CSF_count > 1,]
 clonotype_counts_csf_exp <- clonotype_counts_csf[clonotype_counts_csf$cell_count > 1,]
-THRESH <- 0.75
-high_csf_clones     <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio > THRESH,]
-moderate_csf_clones <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio <= THRESH,]
+high_csf_clones          <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio > THRESH,]
+moderate_csf_clones      <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio <= THRESH,]
 
 
 target_clones <- row.names(high_csf_clones) # Expanded CSF clones
 
-# Omit cells with no Alpha CDR3
-tcr_results_gliph$junction_aa
+# Omit cells with no Alpha CDR3 (no incomplete TCRs)
 data_tcr_na     <- tcr_results_gliph[is.na(tcr_results_gliph$junction_aa),]
 incomplete_tcrs <- unique(data_tcr_na$unique_cell_id)
 data_tcr_clean  <- tcr_results_gliph[! tcr_results_gliph$unique_cell_id %in% incomplete_tcrs,]
@@ -655,10 +657,21 @@ target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call"
 
 ### --stichr (TCRs only)
 * https://github.com/JamieHeather/stitchr
+* Documentation: https://jamieheather.github.io/stitchr/
 * Only makes used of TCR Beta chains
 * This tool must be used in the terminal to access the GUI
+* Example Entry into GUI (V/J/CDR3 AA of top expanded TCR in the CSF)
+  * Beta Chain
+    * TRBV7-9 
+    * TRBJ1-2 
+    * CASSSNAGAVGYTF
+  * Alpha Chain
+    * TRAV26-1
+    * TRAJ27
+    * CIVRVSYNTNAGKSTF
 ```{bash}
-python3 stitchr.py -v TRBV7-6 -j TRBJ1-4 -cdr3 CASSSGQGLGEKLFF
+# Run in terminal locally after installation
+gui_stitchr
 ```
 
 

@@ -121,6 +121,7 @@ tcell_screp <- combineTCR(tcr.list,
                         samples = uni_samples)
 ```
 
+# -----------------------------
 
 # scRepertoire Analysis
 
@@ -287,6 +288,7 @@ clonalDiversity(tcell_screp,
                 n.boots = 100)
 ```
 
+# -----------------------------
 
 # Immcantation Analysis
 
