@@ -1,11 +1,11 @@
 # BMS270 Workshop functions
-library(stringr)
-library(dplyr)
-library(stringdist)
-library(igraph)
-library(data.table)
-library(Matrix)
-library(ggrepel)
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(stringdist))
+suppressPackageStartupMessages(library(igraph))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(Matrix))
+suppressPackageStartupMessages(library(ggrepel))
 
 # 1. Pre-Processing --------------------------------------
 

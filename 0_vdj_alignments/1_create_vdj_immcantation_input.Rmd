@@ -12,12 +12,12 @@ Goal to create input files for Immcantation
   * Set working directory to the folder containing this code
 
 # INPUT
-```{r}
-library(data.table)
-library(stringr)
-library(dplyr)
-library(Biostrings) # for FASTAs
-library(impactSingleCellToolkit)
+```{r,warning=FALSE, message=FALSE}
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(Biostrings)) # for FASTAs
+suppressPackageStartupMessages(library(impactSingleCellToolkit))
 ```
 
 

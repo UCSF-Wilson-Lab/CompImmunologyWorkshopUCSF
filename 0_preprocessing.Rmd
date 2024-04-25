@@ -14,31 +14,31 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ## Load Libraries
-```{r,echo=FALSE,warning=FALSE}
+```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
 
 # Immcantation
-library(alakazam)
-library(shazam)
-library(tigger)
-library(dowser)
+suppressPackageStartupMessages(library(alakazam))
+suppressPackageStartupMessages(library(shazam))
+suppressPackageStartupMessages(library(tigger))
+suppressPackageStartupMessages(library(dowser))
 
-library(glmGamPoi)
-library(Seurat)
-library(DoubletFinder)
-library(SingleR)
+suppressPackageStartupMessages(library(glmGamPoi))
+suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(DoubletFinder))
+suppressPackageStartupMessages(library(SingleR))
 
-library(reshape2)
-library(kableExtra)
-library(devtools)
-library(data.table)
-library(Matrix)
-library(ggplot2)
-library(RColorBrewer)
-library(gridExtra)    # grid.arrange()
-library(cowplot)
-library(dplyr)
-library(impactSingleCellToolkit)
+suppressPackageStartupMessages(library(reshape2))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(devtools))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(Matrix))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(gridExtra))    # grid.arrange()
+suppressPackageStartupMessages(library(cowplot))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(impactSingleCellToolkit))
 
 # scRNA-Seq
 dataset_loc <- "data/gex"
