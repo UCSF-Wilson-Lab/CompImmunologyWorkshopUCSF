@@ -108,7 +108,7 @@ load("objects/csf_vs_pb_DGE.RData")
 ```
 
 ### a. CSF vs. PB
-```{r}
+```{r,eval=FALSE}
 TOP_N <- 100
 
 # Tcells
@@ -214,7 +214,7 @@ DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene))
 
 # 4. Pathway analysis
 
-```{r,echo=FALSE,warning=FALSE}
+```{r,warning=FALSE}
 suppressPackageStartupMessages(library(ReactomePA))
 suppressPackageStartupMessages(library(org.Hs.eg.db))
 suppressPackageStartupMessages(library(igraph))
