@@ -1,6 +1,8 @@
 ---
 title: "Filter scRNA-Seq and VDJ data"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -189,7 +191,7 @@ plot_grid(p1,p2,p3,ncol = 3)
 ### b. feature/violin of canonical genes
 
 * PPBP = Platelets, which are noise
-```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+```{r, fig.height=8, fig.width=10,warning=FALSE}
 tcell_panel           <- c("CD3E","CD3D","CD3G","CD4","CD8A","CD8B")
 bcell_panel           <- c("MS4A1","CD79A","CD79B","CD19","IGHM","IGHA1")
 other_celltypes_panel <- c("CD14","LYZ","MS4A7","FCER1A","APOE","PPBP")
@@ -197,12 +199,12 @@ other_celltypes_panel <- c("CD14","LYZ","MS4A7","FCER1A","APOE","PPBP")
 
 
 #### B cell gene panel
-```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+```{r, fig.height=8, fig.width=10,warning=FALSE}
 FeaturePlot(rnaseq_obj,features = bcell_panel,ncol = 3)
 ```
 
 #### T cell gene panel
-```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+```{r, fig.height=8, fig.width=10,warning=FALSE}
 FeaturePlot(rnaseq_obj,features = tcell_panel,ncol = 3)
 ```
 
@@ -210,7 +212,7 @@ FeaturePlot(rnaseq_obj,features = tcell_panel,ncol = 3)
 
 * Should not see an defined clusters for other cells types since these data
   should only contain B cells and T cells
-```{r, fig.height=8, fig.width=10,echo=FALSE,warning=FALSE}
+```{r, fig.height=8, fig.width=10,warning=FALSE}
 FeaturePlot(rnaseq_obj,features = other_celltypes_panel,ncol = 3)
 ```
 
@@ -283,7 +285,7 @@ plot_grid(p7,p8,ncol = 1,align = "v")
 * SingleR
 * Training Data ENCODE
 
-```{r, fig.height=4, fig.width=10,echo=FALSE,warning=FALSE}
+```{r, fig.height=4, fig.width=10,warning=FALSE}
 singler_annot_df_bcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "B cells",]
 uni_bcell_subtypes   <- unique(singler_annot_df$fine_bencode)
 non_bcell_subtypes   <- uni_bcell_subtypes[! uni_bcell_subtypes %in% c("naive B-cells","Memory B-cells","Plasma cells")]
@@ -396,7 +398,7 @@ tcell_obj <- rnaseq_obj[,cells]
 
 ### b. sample breakdown
 * Disease Patient has an increased proportion of B cells in the CSF of which most are memory B cells
-```{r,fig.height=6, fig.width=7,echo=FALSE,warning=FALSE}
+```{r,fig.height=6, fig.width=7,warning=FALSE}
 p11 <- dittoBarPlot(rnaseq_obj, "sub.celltype.annot", group.by = "status.compartment", main = "All cells",color.panel = dittoColors()[1:4])
 p12 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartment", main = "B cells",color.panel = dittoColors()[3:4])
 
@@ -406,7 +408,7 @@ plot_grid(p11,p12,nrow=2,align = "v")
 
 ### c. clonotype expansion breakdown
 * Expanded T cell populations are observed in all compartments, while expanded B cells show more restriction
-```{r,fig.height=6, fig.width=7,echo=FALSE,warning=FALSE}
+```{r,fig.height=6, fig.width=7,warning=FALSE}
 p11 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
 p12 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
 
