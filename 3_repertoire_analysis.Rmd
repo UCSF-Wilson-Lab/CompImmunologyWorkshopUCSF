@@ -30,6 +30,7 @@ suppressPackageStartupMessages(library(kableExtra))
 suppressPackageStartupMessages(library(devtools))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(ggpubr))
 suppressPackageStartupMessages(library(RColorBrewer))
 suppressPackageStartupMessages(library(gridExtra))
 suppressPackageStartupMessages(library(cowplot))
@@ -121,22 +122,29 @@ tcell_screp <- combineTCR(tcr.list,
                         samples = uni_samples)
 ```
 
-# -----------------------------
+### -----------------------------
 
 # scRepertoire Analysis
 
 # 1. Quantify Clones
-* CSF BCR 
-```{r,fig.height=4,fig.width=5}
+* CSF BCR has a higher percentage of unique clonotypes relative to PBMC when using 'strict' criteria
+* When the scale is set to FALSE, it is shown there are more total unique clonotypes in PBMC
+* Clone counts change depending on what criteria you use
+* Criteria used to define clonally related cells:
+  * strict = cells with the same V/D/J/C + CDR3 nucleotide sequence
+  * gene   = cells with the same V/D/J/C
+  * nt     = CDR3 nucleotide sequence
+  * aa     = CDR3 AA sequence
+```{r,fig.height=3,fig.width=5}
 p_scr1 <- quantContig(bcell_screp, 
             cloneCall="strict", 
             chain = "IGH", 
-            scale = TRUE)
+            scale = FALSE)
 
 p_scr2 <- quantContig(tcell_screp, 
             cloneCall="strict", 
-            chain = "IGH", 
-            scale = TRUE)
+            chain = "both", 
+            scale = FALSE)
 
 plot_grid(p_scr1,p_scr2,ncol = 2)
 ```
@@ -144,43 +152,43 @@ plot_grid(p_scr1,p_scr2,ncol = 2)
 # 2. Clonotype Proportions
 
 ### a. relative abundance
-```{r}
-clonalHomeostasis(tcell_screp, cloneCall = "aa")
+```{r,fig.height=3,fig.width=6}
+p_scr3 <- clonalHomeostasis(bcell_screp, cloneCall = "strict",chain = "IGH")
+p_scr4 <- clonalHomeostasis(tcell_screp, cloneCall = "strict",chain = "both")
 
+plot_grid(p_scr3,p_scr4,ncol = 2)
 ```
 
 ### b. proportion 
 * clonotypes are sorted by abundance and binned in decending order from most abundance clonotypes ([1:10]) to the least
-```{r}
-clonalProportion(bcell_screp, chain = "IGH",cloneCall = "aa") 
-clonalProportion(tcell_screp, chain = "both",cloneCall = "aa") 
+* changing to 'aa' cloneCall criteria leads to more total B cell clonotypes in PBMC
+* B cell repertoire contains fewer total clonotypes compared to T cells
+```{r,fig.height=3,fig.width=6}
+p_scr5 <- clonalProportion(bcell_screp, chain = "IGH",cloneCall = "strict") 
+p_scr6 <- clonalProportion(tcell_screp, chain = "both",cloneCall = "strict") 
+
+plot_grid(p_scr5,p_scr6,ncol = 2)
 ```
 
-### --remove?
-```{r,fig.height=3,fig.width=7}
-p_scr3 <- abundanceContig(bcell_screp, 
-                cloneCall = "gene", 
-                scale = FALSE)
-p_scr4 <- abundanceContig(tcell_screp, 
-                cloneCall = "gene", 
-                scale = FALSE)
-
-plot_grid(p_scr3,p_scr4,ncol = 2)
-```
 
 # 3. Gene usage
 * test different combinations
 * gene = V, J, D, C
 * plot = bar, heatmap
 
+### a. BCR gene usage
+* CSF contains more restricted gene expression especially for V genes
+```{r}
+vizGenes(bcell_screp, gene = "V", 
+         chain = "IGH", 
+         plot = "bar", 
+         scale = TRUE)
+```
+
+### b. TCR gene usage
 ```{r}
 vizGenes(tcell_screp, gene = "V", 
          chain = "TRB", 
-         plot = "bar", 
-         scale = TRUE)
-
-vizGenes(bcell_screp, gene = "V", 
-         chain = "IGH", 
          plot = "bar", 
          scale = TRUE)
 ```
@@ -188,6 +196,7 @@ vizGenes(bcell_screp, gene = "V",
 # 3. CDR3 Lengths
 * Overall lengths are larger in TCRs
 * CSF CDR3 AA lengths are extra short in the B cell repertoire
+
 ```{r,fig.height=3,fig.width=7}
 p_scr5 <- lengthContig(bcell_screp, 
              cloneCall="aa", 
@@ -200,13 +209,16 @@ p_scr6 <- lengthContig(tcell_screp,
 plot_grid(p_scr5,p_scr6,ncol = 2)
 ```
 
-# 4. Shared clonotypes
 
-### a. TCR 
-```{r,fig.height=5,fig.width=10}
+# 4. Shared clonotypes
+* 'numbers' is the number of top clones to evaluate for each group (patient CSF/PBMC)
+* The TCR repertoire will contain many shared clones within a patient, so we will focus on the top 10 largest clones
+
+### a. TCR shared clones
+```{r,fig.height=5,fig.width=15}
 # Disease Patient
 p_scr7 <- compareClonotypes(tcell_screp, 
-                  numbers = 10, 
+                  numbers = 10,
                   chain = "both",
                   samples = c("28_CSF", "28_PBMC"), 
                   cloneCall="aa", 
@@ -222,56 +234,66 @@ p_scr8 <- compareClonotypes(tcell_screp,
 plot_grid(p_scr7,p_scr8)
 ```
 
-### b. BCR 
-* Ig Clonotypes do not overlap between compartments across the most abundant clonotypes.
-* 'aa' criteria B cell clonotypes are strict and don't account for somatic hypermutation
+### b. BCR shared clonotypes
+* Ig Clonotypes do not overlap between compartments across the most abundant clonotypes
+* 'aa' criteria B cell clonotypes are strict and doesn't account for somatic hypermutation
 * When defining clonotypes based on VDJ and CDR3 nucleotide sequences, more overlaps appear
-```{r,fig.height=5,fig.width=10}
+* Since the CSF repertoire is smaller, when we set numbers = NULL, we can still visualize all the shared clonotype connections
+* The Disease patient contains more shared clonotypes between PBMC and CSF
+```{r,fig.height=5,fig.width=15}
 # Disease Patient
 p_scr9 <- compareClonotypes(bcell_screp, 
-                  numbers = 10, 
                   chain = "IGH",
+                  numbers = NULL,
                   samples = c("28_CSF", "28_PBMC"), 
                   cloneCall="strict", 
                   graph = "alluvial")
 # Healthy Control
 p_scr10 <- compareClonotypes(bcell_screp, 
-                  numbers = 10, 
                   chain = "IGH",
+                  numbers = NULL,
                   samples = c("32_CSF", "32_PBMC"), 
                   cloneCall="strict", 
                   graph = "alluvial")
 
 plot_grid(p_scr9,p_scr10)
 ```
-# 5. Shared clonotype scatter plots
-```{r}
-scatterClonotype(tcell_screp, cloneCall ="aa", 
+# 5. Shared clonotype scatter plots - TCR 
+* Disease patient has an increased number of TCR clones that are PBMC or CSF exclusive
+* Healthy patient has more clones that are a even mixture between PBMC and CSF
+```{r,fig.height=4,fig.width=8}
+p_scr11 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
                  x.axis = "28_CSF", 
                  y.axis = "28_PBMC",
                  dot.size = "total",
                  graph = "proportion")
 
-scatterClonotype(tcell_screp, cloneCall ="aa", 
+p_scr12 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
                  x.axis = "32_CSF", 
                  y.axis = "32_PBMC",
                  dot.size = "total",
                  graph = "proportion")
+
+plot_grid(p_scr11,p_scr12,ncol = 2)
 ```
 
 # 6. Shared clonotypes - proportions
 * Proportion of shared clonotypes changes based on the method
-  * aa
+  * aa (no overlaps in BCR clonotypes)
   * gene
   * strict
+```{r,fig.height=3,fig.width=9}
+method  <- "strict"
+p_scr13 <- clonalOverlap(bcell_screp, cloneCall=method,chain = "IGH", method="overlap")
+p_scr14 <- clonalOverlap(tcell_screp, cloneCall=method,chain = "both", method="overlap")
 
-```{r}
-method <- "aa"
-clonalOverlap(tcell_screp, cloneCall=method, method="overlap")
-clonalOverlap(bcell_screp, cloneCall=method, method="overlap")
+
+plot_grid(p_scr13,p_scr14,ncol = 2)
 ```
 
 # 7. Clonal diversity measures
+
+### a. BCR 
 ```{r}
 # BCR
 clonalDiversity(bcell_screp, 
@@ -279,7 +301,10 @@ clonalDiversity(bcell_screp,
                 chain = "IGH",
                 group.by = "sample", 
                 n.boots = 100)
+```
 
+### a. TCR 
+```{r}
 # TCR
 clonalDiversity(tcell_screp, 
                 cloneCall = "aa", 
@@ -288,7 +313,8 @@ clonalDiversity(tcell_screp,
                 n.boots = 100)
 ```
 
-# -----------------------------
+
+### -----------------------------
 
 # Immcantation Analysis
 
