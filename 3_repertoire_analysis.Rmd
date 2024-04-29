@@ -361,7 +361,7 @@ b_status_colors <- c("Disease"="steelblue")
 
 ### a. T/B cells CSF vs. PB
 * Disease and Healthy patients
-```{r,fig.height=3, fig.width=8,echo=FALSE,warning=FALSE}
+```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
 # T cells
@@ -380,7 +380,7 @@ panel_rank_curves
 
 ### b. T/B cells annotated subtypes
 * Disease and Healthy patients
-```{r,fig.height=3, fig.width=8,echo=FALSE,warning=FALSE}
+```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
 # T cells
@@ -397,7 +397,7 @@ panel2_rank_curves
 
 
 ### c. Disease vs. Healthy
-```{r,fig.height=3, fig.width=8,echo=FALSE,warning=FALSE}
+```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
 rank_curve_annot  <- estimateAbundance(tcr_df, group="STATUS", ci=0.95, nboot=200)
@@ -412,7 +412,7 @@ panel3_rank_curves
 ```
 
 ### d. Disease vs. Healthy - CSF
-```{r,fig.height=3, fig.width=7,echo=FALSE,warning=FALSE}
+```{r,fig.height=3, fig.width=7,warning=FALSE}
 set.seed(seed.number)
 
 # Subset CSF 
@@ -444,7 +444,7 @@ jfamily <- countGenes(tcr_results_csf, gene="j_call", groups=c("SUBTYPE_ANNOTATI
 head(vfamily, n=4)
 ```
 
-```{r,fig.height=4, fig.width=6,echo=FALSE,warning=FALSE}
+```{r,fig.height=4, fig.width=6,warning=FALSE}
 g1 <- ggplot(vfamily, aes(x=gene, y=clone_freq)) +
     theme_bw() +
     ggtitle("Clonal V Usage T cells CSF") +
