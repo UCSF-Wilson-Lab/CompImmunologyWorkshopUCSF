@@ -141,6 +141,9 @@ bcr_full_net                 <- graph_from_data_frame(d=bcr_full_edges, vertices
 bcr_full_net                 <- formatIgraphNetwork(bcr_full_net)
 
 bcr_graph_all<- graph.data.frame(bcr_full_edges, directed=F,vertices=bcr_full_node_df)
+```
+
+```{r,eval=FALSE}
 write.graph(bcr_graph_all, file = "4_FindCandidates/bcell_network.gml", format = "gml")
 ```
 
@@ -200,6 +203,9 @@ tcr_exp_net                 <- graph_from_data_frame(d=tcr_exp_edges, vertices=t
 tcr_exp_net                 <- formatIgraphNetwork(tcr_exp_net,extra.size = F,edge.width = 1)
 
 tcr_graph_exp<- graph.data.frame(tcr_exp_edges, directed=F,vertices=tcr_exp_node_df)
+```
+
+```{r,eval=FALSE}
 write.graph(tcr_graph_exp, file = "4_FindCandidates/tcell_expanded_network.gml", format = "gml")
 ```
 
@@ -276,7 +282,7 @@ clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
 * Most B cell clonotypes are 1 cell either in the CSF or PB
-```{r,fig.height=3, fig.width=7,echo=FALSE,warning=FALSE}
+```{r,fig.height=3, fig.width=7,warning=FALSE}
 # TCR 
 p1 <- ggplot(clone_counts_tcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
 
@@ -350,7 +356,7 @@ generateGLIPH2inputFiles(tcr_df_csf,results.dir = results_dir_gliph2)
 * GLIPH2 input files have been provided as part of the workshop
 * Input parameter file: 4_FindCandidates/all_CSF_GLIPH2/param_file_gliph2.cfg
 * Example: parameter file was manually created with the following lines:
-```{bash}
+```{r,eval=FALSE}
 out_prefix=AllCSF
 cdr3_file=TCR_input_table.GLIPH2.tsv
 refer_file=ref.txt
@@ -368,13 +374,13 @@ all_aa_interchangeable=1
 
 * To inlcude HLA genotypes, create a TSV with all class 1 and 2 alleles (1 row per patient)
 * Example: adding HLA geneotypes in parameter file (param_file_gliph2.cfg):
-```{bash}
+```{r, eval=FALSE}
 hla_file=HLA_table_formatted_GLIPH.class1and2.tab
 ```
 
 ### b. Run GLIPH2 in terminal (OPTIONAL)
 * Results provided used input patient HLA genotypes
-```{bash}
+```{r,eval=FALSE}
 cd 4_FindCandidates/all_CSF_GLIPH2
 irtools.centos -c param_file_gliph2.cfg
 ```
@@ -600,7 +606,7 @@ VDJdb <https://vdjdb.cdr3.net/>
 2. Once logged in, click on the 'Annotation' tab
 3. Click on the 'Upload' button
 4. Click 'Add' and select the file we are generating bellow 
-```{r}
+```{r,eval=FALSE}
 write.table(fmt_tcr_results,file = "4_FindCandidates/table_for_VDJdb_CSF.txt",quote = F,row.names = F,sep = "\t")
 ```
 
@@ -670,7 +676,7 @@ target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call"
     * TRAV26-1
     * TRAJ27
     * CIVRVSYNTNAGKSTF
-```{bash}
+```{r, eval=FALSE}
 # Run in terminal locally after installation
 gui_stitchr
 ```
