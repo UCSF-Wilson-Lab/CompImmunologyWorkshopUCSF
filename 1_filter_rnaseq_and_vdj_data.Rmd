@@ -9,10 +9,14 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-GOAL: annotate cell types and define expanded clonotypes (B cells and T cells)
+## Purpose: 
+* annotate cell types and define expanded clonotypes (B cells and T cells)
+  * QC filtering, Doublet removal and automated cell type annotation was performed in **0_preprocessing.Rmd**
+* overlap single cell RNA-Seq and VDJ data on proceed with analyzing overlapping cells
 
-* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
-  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+## Prior to running this code:
+* Before starting set working directory to the **CompImmunologyWorkshopUCSF** folder
+  * setwd(**"[PATH]/CompImmunologyWorkshopUCSF"**)
 
 ```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
@@ -54,7 +58,7 @@ source("resources/functions_workshop.R")
 
 # 1. Load RNA-Seq object
 
-At this stage of the analysis scRNA-Seq, BCR and TCR repertoire datasets have been processed and overlapped
+* At this stage of the analysis scRNA-Seq, BCR and TCR repertoire data have been processed and overlapped
 * Doublet were removed computationally using 'DoubletFinder'
 * cells with more than 10% mitochondrial gene expression were omitted
 * Only B cells and T cells exist in this object
@@ -108,10 +112,12 @@ cells_vdj         <- unique(c(bcr_df$unique_cell_id,
 overlapping_cells <- cells_rnaseq[cells_rnaseq %in% cells_vdj]
 ```
 
-### b. filter rnaseq and vdj data
-```{r,fig.height=6,fig.width=11}
+
+### b. filter rna-seq and vdj data
+* Even after filtering for cells that overlap with BCR/TCR data, there are still sparse clusters of cells annotated as different cell types
+```{r,fig.height=6,fig.width=14}
 # generate UMAP of cell type annotations pre-filtering
-p1_pre_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
+p1_pre_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
 
 # only keep cells with vdj
 rnaseq_obj     <- rnaseq_obj[,colnames(rnaseq_obj) %in% overlapping_cells]
@@ -119,12 +125,13 @@ bcr_df         <- bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,]
 tcr_df         <- tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,]
 
 # post filter umap
-p2_post_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
+p2_post_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+
 plot_grid(p1_pre_filter,p2_post_filter,ncol = 2)
 ```
 
 # 4. Add columns to VDJ data
-* This code block gets stuck when running. To fix this press <enter> in the R console
+* This code block gets stuck when running. To fix this press **return** in the R console
 ```{r}
 # Add sample column
 tcr_df$sample <- tstrsplit(tcr_df$unique_cell_id,"-")[[2]]
@@ -150,18 +157,18 @@ bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
 # 5. Re-cluster
 ```{r,fig.height=6,fig.width=14}
 set.seed(seed.number)
-rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:5,npca = 5,resolution = 0.3,
+rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:4,npca = 5,resolution = 0.3,
                                           normalize = F,dim.reduction = T)
 
-p3_reclustered <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 10,label = T,reduction = "umap")
-p4_reclustered <- DimPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=1.0,label.size = 10, label = T,reduction = "umap")
+p3_reclustered <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5,label = T,reduction = "umap")
+p4_reclustered <- DimPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=1.0,label.size = 5, label = T,reduction = "umap")
 
 plot_grid(p3_reclustered,p4_reclustered,ncol = 2)
 ```
 
-# ---------------
+### ---------------
 
-# Manual Cell type annotation
+# Manual cell type annotation
 
 # 1. Look at the data
 
@@ -189,7 +196,7 @@ plot_grid(p1,p2,p3,ncol = 3)
 
 
 ### b. feature/violin of canonical genes
-
+* For an extended list of gene markers for cell types, refer to **Celltype_Markers.xlsx** in the **resources** directory
 * PPBP = Platelets, which are noise
 ```{r, fig.height=8, fig.width=10,warning=FALSE}
 tcell_panel           <- c("CD3E","CD3D","CD3G","CD4","CD8A","CD8B")
@@ -212,6 +219,11 @@ FeaturePlot(rnaseq_obj,features = tcell_panel,ncol = 3)
 
 * Should not see an defined clusters for other cells types since these data
   should only contain B cells and T cells
+* CD14+ Monocytes - LYZ, CD14
+* CD16+ Monocytes - MS4A7
+* Monocyte derived Dendritic Cells - FCGR3A,MS4A7
+* Macrophage - APOE
+* Platelet - PPBP
 ```{r, fig.height=8, fig.width=10,warning=FALSE}
 FeaturePlot(rnaseq_obj,features = other_celltypes_panel,ncol = 3)
 ```
@@ -226,8 +238,8 @@ main_annot[main_annot %in% tcr_df$unique_cell_id] <- "T cells"
 names(main_annot) <- names(rnaseq_obj$orig.ident)
 rnaseq_obj$main.celltype.annot <- main_annot
 
-p4 <- DimPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
-p5 <- DimPlot(object = rnaseq_obj, group.by="main.celltype.annot", pt.size=1.0, label.size = 10, alpha = 0.7,label = T,reduction = "umap")
+p4 <- DimPlot(object = rnaseq_obj, group.by="seurat_clusters", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+p5 <- DimPlot(object = rnaseq_obj, group.by="main.celltype.annot", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
 
 plot_grid(p4,p5, ncol = 2)
 ```
@@ -248,6 +260,11 @@ plot_grid(p6,p4,ncol = 2,rel_heights = c(8,6),rel_widths = c(6,6))
 * CD8 T cells are much higher in automated SingleR annotations
 * In addition, there are cell types which are mis-annotated as Macrophages, Monocytes and NK cells
 * Mis-annotated celltype cluster with B cells
+* We are going to re-annotate T cells manually based on CD8 expression
+```{r,fig.height=6,fig.width=17}
+FeaturePlot(rnaseq_obj, features = c("CD8A", "CD8B"),blend = TRUE)
+```
+
 ```{r,fig.height=6,fig.width= 10}
 # SingleR Encode annotatons
 singler_annot_df <- rnaseq_obj@meta.data[,c("sample","seurat_clusters","main_bencode","fine_bencode","main.celltype.annot")]
@@ -352,9 +369,9 @@ clone_count_subset <- clone_counts_tcr[clone_counts_tcr$cell_count > 1 & clone_c
 
 
 ### b. create categories for clonal expansion
-Highly expanded - cell count > 5
-Moderate        - 1 < cells count < 5
-Non-expanded    - cell count = 1
+* Highly expanded - cell count > 5
+* Moderate        - 1 < cells count < 5
+* Non-expanded    - cell count = 1
 ```{r}
 tcr_df <- addExpansionCategories(tcr_df,clone_counts_tcr)
 bcr_df <- addExpansionCategories(bcr_df,clone_counts_bcr)
@@ -416,7 +433,7 @@ grid.arrange(p11,p12,nrow=2)
 ```
 
 
-# ---------------
+### ---------------
 
 # SAVE Processed objects
 ```{r,eval=FALSE}
