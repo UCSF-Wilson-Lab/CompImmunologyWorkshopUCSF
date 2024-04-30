@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
+## Prior to running this code:
 * Before starting set working directory to the CompImmunologyWorkshopUCSF folder
   * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
@@ -129,7 +129,10 @@ top_genes_bcells       <- dge_compartment_bcells %>% group_by(cluster) %>% top_n
 ```
 
 #### Heatmaps - T cells
-```{r,fig.height=6,fig.width=9}
+```{r,fig.height=6,fig.width=9,warning=FALSE}
+Idents(tcell_obj) <- tcell_obj$compartment
+levels(tcell_obj) <- c("CSF","PB")
+
 p1 <- dittoHeatmap(tcell_obj, genes = top_genes_tcells$gene,
         annot.by = c("compartment","status", "sub.celltype.annot"),
         scaled.to.max = TRUE,
@@ -146,7 +149,10 @@ p1.2
 ```
 
 #### Heatmaps - B cells
-```{r,fig.height=6,fig.width=9}
+```{r,fig.height=6,fig.width=9,warning=FALSE}
+Idents(bcell_obj) <- bcell_obj$compartment
+levels(bcell_obj) <- c("CSF","PB")
+
 p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
         annot.by = c("compartment","status", "sub.celltype.annot"),
         scaled.to.max = TRUE,
@@ -162,10 +168,10 @@ p2
 p2.2
 ```
 
-#### Volcano Plots
+#### DGE dot plots
 
 ```{r,fig.height=5,fig.width=9,warning=FALSE}
-v1 <- plotDGEvolcano(dge_compartment_bcells_all,YLIM = c(0,50),title = "B cell DGE CSF vs. PB",cluster_filt = "CSF",
+v1 <- plotDGEvolcano(dge_compartment_bcells_all,YLIM = c(0,10),title = "B cell DGE CSF vs. PB",cluster_filt = "CSF",
                     p.adj.thresh = 0.05,show_top_genes = 20)
 v2 <- plotDGEvolcano(dge_compartment_tcells_all,YLIM = c(0,250),title = "T cell DGE CSF vs. PB",cluster_filt = "CSF",
                     p.adj.thresh = 0.05,show_top_genes = 20)
@@ -185,8 +191,10 @@ dge_tcell_csf   <- dge_tcell_csf[dge_tcell_csf$p_val_adj < 0.05,]
 top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-#### -plot T cells
-```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
+#### - Plot T cells
+```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
+# fig.height=11 | fig.height=7 for workshop
+
 DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
 ```
 
@@ -207,8 +215,10 @@ dge_bcell_csfpb   <- dge_bcell_csfpb[dge_bcell_csfpb$p_val_adj < 0.05,]
 top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-#### -plot B cells
-```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
+#### - Plot B cells
+```{r,fig.height=17, fig.width=8,echo=TRUE,warning=FALSE}
+# fig.height=17 | fig.height=9 for workshop
+
 DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF High vs. Non-Expanded") + coord_flip()
 ```
 
@@ -227,7 +237,7 @@ suppressPackageStartupMessages(library(ggupset))
 ```
 
 ### a. B cells Memory
-```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
+```{r,fig.height=8, fig.width=7,echo=TRUE,warning=FALSE}
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
@@ -272,7 +282,7 @@ emapplot(bcell_pathways_net, showCategory = 14,
 
 
 #### Network of Pathways and genes (DisGeNET database)
-```{r,fig.height=6,fig.width=15}
+```{r,fig.height=6,fig.width=17,warning=FALSE}
 edo <- enrichDGN(as.list(de))
 de_fc_list <- sort(de_fc_list,decreasing = T)
 
@@ -329,7 +339,7 @@ emapplot(tcell_pathways_net, showCategory = 25,repel = T,cex_label_group = 0.5,l
 ```
 
 #### Network of Pathways and genes (DisGeNET database)
-```{r,fig.height=5,fig.width=10}
+```{r,fig.height=7,fig.width=13}
 edo <- enrichDGN(as.list(de))
 de_fc_list <- sort(de_fc_list,decreasing = T)
 
@@ -340,7 +350,7 @@ edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
 p1_tcell <- cnetplot(edox, categorySize="pvalue", foldChange=de_fc_list)
 
 ## Heatmap
-p2_tcell <- heatplot(edox, foldChange=de_fc_list, showCategory=25)
+p2_tcell <- heatplot(edox, foldChange=de_fc_list, showCategory=20)
 
 plot_grid(p1_tcell,p2_tcell,ncol = 2)
 ```
