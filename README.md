@@ -31,7 +31,34 @@ This workshop supports **R v4.3.2** or later. Install instructions for all requi
 
 **CRAN R packages to install:**
 ```{r}
+# Key packages
+install.packages(c("Seurat",
+                   "kableExtra",
+                   "alakazam",
+                   "shazam",
+                   "tigger",
+                   "dowser",
+                   "gridExtra",
+                   "Matrix",
+                   "ggupset"),
+                   repos="https://cloud.r-project.org")
 
+# General packages to install
+install.packages(c("devtools",
+                   "knitr",
+                   "dplyr",
+                   "stringr",
+                   "reshape2",
+                   "ggplot2",
+                   "RColorBrewer",
+                   "stringdist",
+                   "igraph",
+                   "data.table",
+                   "cowplot",
+                   "ggpubr",
+                   "enrichplot",
+                   "ggnewscale"),
+                   repos="https://cloud.r-project.org")
 ```
 
 **Bioconductor R Packages to install:**
