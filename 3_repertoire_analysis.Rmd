@@ -1,5 +1,5 @@
 ---
-title: "VDJ Analysis"
+title: "Immune Repertoire Analysis"
 output: html_document
 ---
 
@@ -7,6 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Prior to running this code:
 * Before starting set working directory to the CompImmunologyWorkshopUCSF folder
   * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
@@ -135,7 +136,8 @@ tcell_screp <- combineTCR(tcr.list,
   * gene   = cells with the same V/D/J/C
   * nt     = CDR3 nucleotide sequence
   * aa     = CDR3 AA sequence
-```{r,fig.height=3,fig.width=5}
+```{r,fig.height=3,fig.width=9}
+# fig.width=9 | fig.width=5 for workshop
 p_scr1 <- quantContig(bcell_screp, 
             cloneCall="strict", 
             chain = "IGH", 
@@ -152,7 +154,8 @@ plot_grid(p_scr1,p_scr2,ncol = 2)
 # 2. Clonotype Proportions
 
 ### a. relative abundance
-```{r,fig.height=3,fig.width=6}
+```{r,fig.height=4,fig.width=12}
+# fig.height=4,fig.width=12 |fig.height=3,fig.width=6 for workshop
 p_scr3 <- clonalHomeostasis(bcell_screp, cloneCall = "strict",chain = "IGH")
 p_scr4 <- clonalHomeostasis(tcell_screp, cloneCall = "strict",chain = "both")
 
@@ -163,7 +166,8 @@ plot_grid(p_scr3,p_scr4,ncol = 2)
 * clonotypes are sorted by abundance and binned in decending order from most abundance clonotypes ([1:10]) to the least
 * changing to 'aa' cloneCall criteria leads to more total B cell clonotypes in PBMC
 * B cell repertoire contains fewer total clonotypes compared to T cells
-```{r,fig.height=3,fig.width=6}
+```{r,fig.height=3,fig.width=12}
+# fig.width=12 | fig.width=6 for workshop
 p_scr5 <- clonalProportion(bcell_screp, chain = "IGH",cloneCall = "strict") 
 p_scr6 <- clonalProportion(tcell_screp, chain = "both",cloneCall = "strict") 
 
@@ -211,11 +215,11 @@ plot_grid(p_scr5,p_scr6,ncol = 2)
 
 
 # 4. Shared clonotypes
-* 'numbers' is the number of top clones to evaluate for each group (patient CSF/PBMC)
+* **numbers** is the number of top clones to evaluate for each group (patient CSF/PBMC)
 * The TCR repertoire will contain many shared clones within a patient, so we will focus on the top 10 largest clones
 
 ### a. TCR shared clones
-```{r,fig.height=5,fig.width=15}
+```{r,fig.height=7,fig.width=15}
 # Disease Patient
 p_scr7 <- compareClonotypes(tcell_screp, 
                   numbers = 10,
@@ -258,10 +262,12 @@ p_scr10 <- compareClonotypes(bcell_screp,
 
 plot_grid(p_scr9,p_scr10)
 ```
+
 # 5. Shared clonotype scatter plots - TCR 
 * Disease patient has an increased number of TCR clones that are PBMC or CSF exclusive
 * Healthy patient has more clones that are a even mixture between PBMC and CSF
-```{r,fig.height=4,fig.width=8}
+```{r,fig.height=4,fig.width=11}
+# fig.width=11 | fig.width=8 for workshop
 p_scr11 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
                  x.axis = "28_CSF", 
                  y.axis = "28_PBMC",
@@ -282,7 +288,7 @@ plot_grid(p_scr11,p_scr12,ncol = 2)
   * aa (no overlaps in BCR clonotypes)
   * gene
   * strict
-```{r,fig.height=3,fig.width=9}
+```{r,fig.height=3,fig.width=9,warning=FALSE}
 method  <- "strict"
 p_scr13 <- clonalOverlap(bcell_screp, cloneCall=method,chain = "IGH", method="overlap")
 p_scr14 <- clonalOverlap(tcell_screp, cloneCall=method,chain = "both", method="overlap")
@@ -316,7 +322,7 @@ clonalDiversity(tcell_screp,
 
 ### -----------------------------
 
-# Immcantation Analysis
+# Immcantation Post Analysis
 
 https://bitbucket.org/kleinstein/immcantation/src/master/training/10x_tutorial.md
 
@@ -371,12 +377,14 @@ r1<-plot(rank_curve_loc,main_title="T cell Rank diversity CSF and PB",colors=com
 # B cells
 rank_curve_loc  <- estimateAbundance(bcr_results_igh, group="COMPARTMENT", ci=0.95, nboot=200,min_n = 7)
 r2<-plot(rank_curve_loc,main_title="B cell Rank diversity CSF and PB",color=comp_colors)
+```
 
-
+```{r,fig.height=3, fig.width=8,warning=FALSE,eval=FALSE}
 # Plot both curves in the same plot
 panel_rank_curves <- plot_grid(r1,r2,ncol = 2)
 panel_rank_curves
 ```
+
 
 ### b. T/B cells annotated subtypes
 * Disease and Healthy patients
@@ -390,7 +398,9 @@ r3<-plot(rank_curve_annot,main_title="Rank diversity T cell Annotation",color=t_
 # B cells
 rank_curve_annot  <- estimateAbundance(bcr_results_igh, group="SUBTYPE_ANNOTATION", ci=0.95, nboot=200,min_n = 7)
 r4<-plot(rank_curve_annot,main_title="Rank diversity B cell Annotation",colors=b_annot_colors)
+```
 
+```{r,fig.height=3, fig.width=8,warning=FALSE,eval=FALSE}
 panel2_rank_curves <- plot_grid(r3,r4,ncol = 2)
 panel2_rank_curves
 ```
@@ -405,13 +415,17 @@ r5<-plot(rank_curve_annot,main_title="Rank diversity T cell Status",colors=statu
 
 rank_curve_annot  <- estimateAbundance(bcr_results_igh, group="STATUS", ci=0.95, nboot=200,min_n = 8)
 r6<-plot(rank_curve_annot,main_title="Rank diversity B cell Status",colors=status_colors)
+```
 
+```{r,fig.height=3, fig.width=8,warning=FALSE,eval=FALSE}
 # Plot both curves in the same plot
 panel3_rank_curves <- plot_grid(r5,r6,ncol = 2)
 panel3_rank_curves
 ```
 
 ### d. Disease vs. Healthy - CSF
+
+* There are no BCRs in the CSF of the healthy patient
 ```{r,fig.height=3, fig.width=7,warning=FALSE}
 set.seed(seed.number)
 
@@ -427,11 +441,13 @@ r7<-plot(rank_curve_annot,main_title="Rank diversity T cell Status CSF",colors=s
 rank_curve_annot  <- estimateAbundance(bcr_results_igh_csf, group="STATUS", ci=0.95, nboot=200,min_n = 8)
 r8<-plot(rank_curve_annot,main_title="Rank diversity B cell Status CSF",colors=b_status_colors)
 
+
+```
+
+```{r,fig.height=3, fig.width=7,warning=FALSE,eval=FALSE}
 panel4_rank_curves <- plot_grid(r7,r8,ncol = 2)
 panel4_rank_curves
 ```
-
-
 
 
 # 3. V/J usage T cells
@@ -444,7 +460,8 @@ jfamily <- countGenes(tcr_results_csf, gene="j_call", groups=c("SUBTYPE_ANNOTATI
 head(vfamily, n=4)
 ```
 
-```{r,fig.height=4, fig.width=6,warning=FALSE}
+```{r,fig.height=8, fig.width=9,warning=FALSE}
+# fig.height=8, fig.width=9| fig.height=4, fig.width=6 for workshop
 g1 <- ggplot(vfamily, aes(x=gene, y=clone_freq)) +
     theme_bw() +
     ggtitle("Clonal V Usage T cells CSF") +
@@ -482,7 +499,9 @@ head(cfamily_csf, n=4)
 ```
 
 
-```{r,fig.height=4, fig.width=6,echo=TRUE,warning=FALSE}
+```{r,fig.height=8, fig.width=6,echo=TRUE,warning=FALSE}
+# fig.height=8 | fig.height=4 for workshop
+
 g1 <- ggplot(cfamily_csf, aes(x=gene, y=clone_freq)) +
     theme_bw() +
     ggtitle("Clonal Subtype B cells CSF") +
@@ -592,16 +611,21 @@ a10_curve <- alphaDiversity(tcr_results_h_cd8, group="COMPARTMENT",min_q=0, max_
 ```{r,fig.height=3,fig.width=7}
 a7<-plot(a7_curve,main_title="CD4 Disease alpha diversity",colors=comp_colors)
 a8<-plot(a8_curve,main_title="CD8 Disease alpha diversity",colors=comp_colors)
+```
 
+```{r,fig.height=3,fig.width=7,eval=FALSE}
 panel_tcr_ad <- plot_grid(a7,a8,nrow = 1)
 panel_tcr_ad
 ```
+
 
 ### c. Healthy T cell CSF/PB diversity
 ```{r,fig.height=3,fig.width=7}
 a9<-plot(a9_curve,main_title="CD4 Healthy alpha diversity",colors=comp_colors)
 a10<-plot(a10_curve, main_title="CD8 Healthy alpha diversity",colors=comp_colors)
+```
 
+```{r,fig.height=3,fig.width=7,eval=FALSE}
 panel_tcr_ad2 <- plot_grid(a9,a10,nrow = 1)
 panel_tcr_ad2
 ```
@@ -656,7 +680,9 @@ plot_grid(p_mut_pb,p_mut_csf,ncol = 2)
 ```
 
 ### c. boxplot across different sub-classes
-```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
+```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
+# fig.height=6 | fig.height=3 for workshop
+
 g1 <- ggplot(bcr_csf_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
     theme_bw() + ggtitle("BCR CSF Total mutations") +
     xlab("Isotype") + ylab("Mutation frequency") +
@@ -718,6 +744,8 @@ print(clones)
 ```
 
 ### b. build tree
+
+* Since our data doesn't have one large BCR clonotype, lets generate an example tree with public data
 ```{r}
 # Follow tutorial instead
 
