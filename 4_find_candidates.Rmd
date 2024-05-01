@@ -7,6 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Prior to running this code:
 * Before starting set working directory to the CompImmunologyWorkshopUCSF folder
   * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
@@ -49,11 +50,11 @@ source("resources/functions_workshop.R")
 load("objects/processed_objects.RData")
 ```
 
-# -----------------------------
+### -----------------------------
 
 # Immune Repertoires
 
-# --function to format networks
+## --function to format networks
 ```{r}
 # formatIgraphNetwork
 #  - format networks for node and edge features so everything is consistent
@@ -282,7 +283,9 @@ clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
 * Most B cell clonotypes are 1 cell either in the CSF or PB
-```{r,fig.height=3, fig.width=7,warning=FALSE}
+```{r,fig.height=3, fig.width=11,warning=FALSE}
+# fig.width=11 | fig.width=7 for workshop
+
 # TCR 
 p1 <- ggplot(clone_counts_tcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
 
@@ -292,11 +295,11 @@ p2 <- ggplot(clone_counts_bcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_categor
 grid.arrange(p1,p2, nrow = 1)
 ```
 
-# -----------------------------
+### -----------------------------
 
 # GLIPH2 Network Analysis
 
-# --function to format networks
+## --function to format networks
 ```{r}
 # format TCR GLIPH network
 #  - interactions are based on the GLIPH group, not clone ID
