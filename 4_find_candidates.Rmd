@@ -253,7 +253,7 @@ plot(tcr_hc_net,layout = layout_with_fr, main = "TCR CD8 - Healthy Patient")
 # 4. Dot plot of clonotypes
 
 * Search for Disease Relevant Clonotypes (Thresholds based on prior analysis)
-    * CSF_PB_RATIO_THRESH > 2
+    * CSF_PB_RATIO_THRESH > 1.5
     * PB_count <= 1
 
 ```{r}
@@ -283,7 +283,7 @@ clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
 * Most B cell clonotypes are 1 cell either in the CSF or PB
-```{r,fig.height=3, fig.width=11,warning=FALSE}
+```{r,fig.height=3, fig.width=10,warning=FALSE}
 # fig.width=11 | fig.width=7 for workshop
 
 # TCR 

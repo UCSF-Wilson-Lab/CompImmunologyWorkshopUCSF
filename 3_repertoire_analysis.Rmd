@@ -59,7 +59,7 @@ load(processed_objects_fh)
 # Add unique_cell_id column to seurat objects
 bcell_obj$unique_cell_id <- row.names(bcell_obj@meta.data)
 
-# Remove cells with no annotations (2 cells)
+# Remove cells with no annotations
 tcr_df <- tcr_df[! tcr_df$SUBTYPE_ANNOTATION %in% "No Annot",]
 bcr_df <- bcr_df[! bcr_df$SUBTYPE_ANNOTATION %in% "No Annot",]
 
@@ -127,6 +127,8 @@ tcell_screp <- combineTCR(tcr.list,
 
 # scRepertoire Analysis
 
+* Overall this tools seems very good very quick and preliminary exploration of repertoire data. In particular, the way clones are defined benefits TCR repertoire analysis more than BCR. 
+
 # 1. Quantify Clones
 * CSF BCR has a higher percentage of unique clonotypes relative to PBMC when using 'strict' criteria
 * When the scale is set to FALSE, it is shown there are more total unique clonotypes in PBMC
@@ -136,7 +138,7 @@ tcell_screp <- combineTCR(tcr.list,
   * gene   = cells with the same V/D/J/C
   * nt     = CDR3 nucleotide sequence
   * aa     = CDR3 AA sequence
-```{r,fig.height=3,fig.width=9}
+```{r,fig.height=3,fig.width=8}
 # fig.width=9 | fig.width=5 for workshop
 p_scr1 <- quantContig(bcell_screp, 
             cloneCall="strict", 
@@ -154,10 +156,10 @@ plot_grid(p_scr1,p_scr2,ncol = 2)
 # 2. Clonotype Proportions
 
 ### a. relative abundance
-```{r,fig.height=4,fig.width=12}
+```{r,fig.height=3,fig.width=10}
 # fig.height=4,fig.width=12 |fig.height=3,fig.width=6 for workshop
-p_scr3 <- clonalHomeostasis(bcell_screp, cloneCall = "strict",chain = "IGH")
-p_scr4 <- clonalHomeostasis(tcell_screp, cloneCall = "strict",chain = "both")
+p_scr3 <- clonalHomeostasis(bcell_screp, cloneCall = "aa",chain = "IGH")
+p_scr4 <- clonalHomeostasis(tcell_screp, cloneCall = "aa",chain = "both")
 
 plot_grid(p_scr3,p_scr4,ncol = 2)
 ```
@@ -166,7 +168,7 @@ plot_grid(p_scr3,p_scr4,ncol = 2)
 * clonotypes are sorted by abundance and binned in decending order from most abundance clonotypes ([1:10]) to the least
 * changing to 'aa' cloneCall criteria leads to more total B cell clonotypes in PBMC
 * B cell repertoire contains fewer total clonotypes compared to T cells
-```{r,fig.height=3,fig.width=12}
+```{r,fig.height=3,fig.width=6}
 # fig.width=12 | fig.width=6 for workshop
 p_scr5 <- clonalProportion(bcell_screp, chain = "IGH",cloneCall = "strict") 
 p_scr6 <- clonalProportion(tcell_screp, chain = "both",cloneCall = "strict") 
@@ -190,6 +192,8 @@ vizGenes(bcell_screp, gene = "V",
 ```
 
 ### b. TCR gene usage
+
+* No **both** option for chain
 ```{r}
 vizGenes(tcell_screp, gene = "V", 
          chain = "TRB", 
@@ -201,7 +205,7 @@ vizGenes(tcell_screp, gene = "V",
 * Overall lengths are larger in TCRs
 * CSF CDR3 AA lengths are extra short in the B cell repertoire
 
-```{r,fig.height=3,fig.width=7}
+```{r,fig.height=3,fig.width=9}
 p_scr5 <- lengthContig(bcell_screp, 
              cloneCall="aa", 
              chain = "IGH") 
@@ -266,7 +270,7 @@ plot_grid(p_scr9,p_scr10)
 # 5. Shared clonotype scatter plots - TCR 
 * Disease patient has an increased number of TCR clones that are PBMC or CSF exclusive
 * Healthy patient has more clones that are a even mixture between PBMC and CSF
-```{r,fig.height=4,fig.width=11}
+```{r,fig.height=4,fig.width=10}
 # fig.width=11 | fig.width=8 for workshop
 p_scr11 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
                  x.axis = "28_CSF", 
@@ -298,6 +302,13 @@ plot_grid(p_scr13,p_scr14,ncol = 2)
 ```
 
 # 7. Clonal diversity measures
+
+https://en.wikipedia.org/wiki/Diversity_index
+https://evolution.unibas.ch/walser/bacteria_community_analysis/2015-02-10_MBM_tutorial_combined.pdf
+
+* Richness - index emphasizing the number of different types of clonotypes
+* Shannon - index that is a form species richness where rare OTU's play more of an influence
+* Inv. Simpson - index emphasizes species dominance where proportional abundance among clonotype groups are averaged
 
 ### a. BCR 
 ```{r}
@@ -406,7 +417,7 @@ panel2_rank_curves
 ```
 
 
-### c. Disease vs. Healthy
+### c. Disease vs. Healthy (CSF & PB)
 ```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
@@ -460,7 +471,7 @@ jfamily <- countGenes(tcr_results_csf, gene="j_call", groups=c("SUBTYPE_ANNOTATI
 head(vfamily, n=4)
 ```
 
-```{r,fig.height=8, fig.width=9,warning=FALSE}
+```{r,fig.height=6, fig.width=8,warning=FALSE}
 # fig.height=8, fig.width=9| fig.height=4, fig.width=6 for workshop
 g1 <- ggplot(vfamily, aes(x=gene, y=clone_freq)) +
     theme_bw() +
@@ -499,7 +510,7 @@ head(cfamily_csf, n=4)
 ```
 
 
-```{r,fig.height=8, fig.width=6,echo=TRUE,warning=FALSE}
+```{r,fig.height=7, fig.width=6,echo=TRUE,warning=FALSE}
 # fig.height=8 | fig.height=4 for workshop
 
 g1 <- ggplot(cfamily_csf, aes(x=gene, y=clone_freq)) +
@@ -657,6 +668,7 @@ bcr_pb_obs <- observedMutations(bcr_results_igh_pb, sequenceColumn="sequence_ali
 ```
 
 ### b. plot clonotype mutations - median mutation freq
+* Large number of clones have no mutations in PB
 * Far more mutations in PB when considering the scale
 ```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
 # CSF 
@@ -680,7 +692,7 @@ plot_grid(p_mut_pb,p_mut_csf,ncol = 2)
 ```
 
 ### c. boxplot across different sub-classes
-```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
+```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
 # fig.height=6 | fig.height=3 for workshop
 
 g1 <- ggplot(bcr_csf_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +
@@ -706,6 +718,8 @@ grid.arrange(g1,g2,nrow=2)
 * https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
 
 ### a. setup models
+
+* Only focus on BCRs from the Disease patient
 ```{r}
 set.seed(seed.number)
 

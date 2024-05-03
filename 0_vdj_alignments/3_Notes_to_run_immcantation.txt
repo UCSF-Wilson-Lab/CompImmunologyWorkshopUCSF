@@ -8,7 +8,7 @@ docker rm [NAME] # remove a container based on the 'NAME' as listed in the docke
 ### 0. Change directory to data folder
 cd data/
 
-### 1. Download immcantation 4.3.0 from dockerhub (only need to pull this version once)
+### 1. Download immcantation 4.5.0 from dockerhub (only need to pull this version once)
 #      - If you have issues with version 4.5.0, use version 4.3.0 instead
 docker pull immcantation/suite:4.5.0
 

@@ -8,8 +8,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-Goal to create input files for Immcantation
-  * Set working directory to the folder containing this code
+**Goal to create input files for Immcantation:**
+  * Set working directory to the folder containing this code.
+
+**Notes on cellranger results:**
+  * GEX and VDJ results were generated with an older version of cellranger that is linked to this study.
+  * In the most current version of cellranger, we could use **all_contig.fasta** and **all_contig_annotations.csv** files as the input for these functions.
 
 # INPUT
 ```{r,warning=FALSE, message=FALSE}

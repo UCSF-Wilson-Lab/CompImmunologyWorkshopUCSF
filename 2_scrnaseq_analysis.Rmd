@@ -47,6 +47,9 @@ load("objects/processed_objects.RData")
 # 2. Subset Disease Objects
 
 ### a. subset B and T cells
+
+* Combine Moderate and High into Expanded to set up comparing Expanded vs Non-expanded clonotypes
+* There are far more T cells compared to B cells, which allows us to do a CSF only analysis for T cells, but not B cells
 ```{r}
 # T cell CSF object
 tcell_obj_csf <- tcell_obj[,names(tcell_obj$status[tcell_obj$status %in% "Disease"])]
@@ -192,7 +195,7 @@ top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg
 ```
 
 #### - Plot T cells
-```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
+```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=11 | fig.height=7 for workshop
 
 DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
@@ -216,7 +219,7 @@ top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N,
 ```
 
 #### - Plot B cells
-```{r,fig.height=17, fig.width=8,echo=TRUE,warning=FALSE}
+```{r,fig.height=9, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=17 | fig.height=9 for workshop
 
 DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF High vs. Non-Expanded") + coord_flip()
@@ -299,7 +302,7 @@ plot_grid(p1_bcell,p2_bcell,ncol = 2)
 ```
 
 
-### b. T cells CD8
+### b. T cells CSF CD8
 ```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
