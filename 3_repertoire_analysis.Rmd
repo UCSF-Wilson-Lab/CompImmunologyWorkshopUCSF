@@ -138,8 +138,8 @@ tcell_screp <- combineTCR(tcr.list,
   * gene   = cells with the same V/D/J/C
   * nt     = CDR3 nucleotide sequence
   * aa     = CDR3 AA sequence
-```{r,fig.height=3,fig.width=8}
-# fig.width=9 | fig.width=5 for workshop
+```{r,fig.height=3,fig.width=9}
+# fig.width=9 | fig.width=9 for workshop
 p_scr1 <- quantContig(bcell_screp, 
             cloneCall="strict", 
             chain = "IGH", 
@@ -156,8 +156,8 @@ plot_grid(p_scr1,p_scr2,ncol = 2)
 # 2. Clonotype Proportions
 
 ### a. relative abundance
-```{r,fig.height=3,fig.width=10}
-# fig.height=4,fig.width=12 |fig.height=3,fig.width=6 for workshop
+```{r,fig.height=4,fig.width=12}
+# fig.height=4,fig.width=12 |fig.height=3,fig.width=10 for workshop
 p_scr3 <- clonalHomeostasis(bcell_screp, cloneCall = "aa",chain = "IGH")
 p_scr4 <- clonalHomeostasis(tcell_screp, cloneCall = "aa",chain = "both")
 
@@ -168,7 +168,7 @@ plot_grid(p_scr3,p_scr4,ncol = 2)
 * clonotypes are sorted by abundance and binned in decending order from most abundance clonotypes ([1:10]) to the least
 * changing to 'aa' cloneCall criteria leads to more total B cell clonotypes in PBMC
 * B cell repertoire contains fewer total clonotypes compared to T cells
-```{r,fig.height=3,fig.width=6}
+```{r,fig.height=3,fig.width=12}
 # fig.width=12 | fig.width=6 for workshop
 p_scr5 <- clonalProportion(bcell_screp, chain = "IGH",cloneCall = "strict") 
 p_scr6 <- clonalProportion(tcell_screp, chain = "both",cloneCall = "strict") 
@@ -270,8 +270,8 @@ plot_grid(p_scr9,p_scr10)
 # 5. Shared clonotype scatter plots - TCR 
 * Disease patient has an increased number of TCR clones that are PBMC or CSF exclusive
 * Healthy patient has more clones that are a even mixture between PBMC and CSF
-```{r,fig.height=4,fig.width=10}
-# fig.width=11 | fig.width=8 for workshop
+```{r,fig.height=4,fig.width=11}
+# fig.width=11 | fig.width=10 for workshop
 p_scr11 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
                  x.axis = "28_CSF", 
                  y.axis = "28_PBMC",
@@ -471,8 +471,8 @@ jfamily <- countGenes(tcr_results_csf, gene="j_call", groups=c("SUBTYPE_ANNOTATI
 head(vfamily, n=4)
 ```
 
-```{r,fig.height=6, fig.width=8,warning=FALSE}
-# fig.height=8, fig.width=9| fig.height=4, fig.width=6 for workshop
+```{r,fig.height=8, fig.width=9,warning=FALSE}
+# fig.height=8, fig.width=9| fig.height=6, fig.width=8 for workshop
 g1 <- ggplot(vfamily, aes(x=gene, y=clone_freq)) +
     theme_bw() +
     ggtitle("Clonal V Usage T cells CSF") +
@@ -510,8 +510,8 @@ head(cfamily_csf, n=4)
 ```
 
 
-```{r,fig.height=7, fig.width=6,echo=TRUE,warning=FALSE}
-# fig.height=8 | fig.height=4 for workshop
+```{r,fig.height=8, fig.width=6,echo=TRUE,warning=FALSE}
+# fig.height=8 | fig.height=7 for workshop
 
 g1 <- ggplot(cfamily_csf, aes(x=gene, y=clone_freq)) +
     theme_bw() +
@@ -692,7 +692,7 @@ plot_grid(p_mut_pb,p_mut_csf,ncol = 2)
 ```
 
 ### c. boxplot across different sub-classes
-```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
+```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
 # fig.height=6 | fig.height=3 for workshop
 
 g1 <- ggplot(bcr_csf_obs, aes(x=c_call, y=mu_freq, fill=c_call)) +

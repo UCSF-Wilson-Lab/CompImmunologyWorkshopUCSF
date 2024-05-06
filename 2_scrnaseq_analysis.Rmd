@@ -195,7 +195,7 @@ top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg
 ```
 
 #### - Plot T cells
-```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
+```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=11 | fig.height=7 for workshop
 
 DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
@@ -219,7 +219,7 @@ top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N,
 ```
 
 #### - Plot B cells
-```{r,fig.height=9, fig.width=8,echo=TRUE,warning=FALSE}
+```{r,fig.height=17, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=17 | fig.height=9 for workshop
 
 DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF High vs. Non-Expanded") + coord_flip()

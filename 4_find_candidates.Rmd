@@ -283,8 +283,8 @@ clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
 * Most B cell clonotypes are 1 cell either in the CSF or PB
-```{r,fig.height=3, fig.width=10,warning=FALSE}
-# fig.width=11 | fig.width=7 for workshop
+```{r,fig.height=3, fig.width=11,warning=FALSE}
+# fig.width=11 | fig.width=10 for workshop
 
 # TCR 
 p1 <- ggplot(clone_counts_tcr_disease, aes(x=pct_PB, y=pct_CSF,color=exp_category)) + geom_point(aes(size=cell_count)) + scale_color_manual(breaks = c("CSF_high_expanded", "Other"),values=c("red", "black")) + ggtitle("T cells")
