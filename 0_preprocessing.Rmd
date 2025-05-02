@@ -25,6 +25,8 @@ suppressPackageStartupMessages(library(dowser))
 
 suppressPackageStartupMessages(library(glmGamPoi))
 suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(SeuratData))
+suppressPackageStartupMessages(library(Azimuth))
 suppressPackageStartupMessages(library(DoubletFinder))
 suppressPackageStartupMessages(library(SingleR))
 
@@ -52,11 +54,14 @@ source("resources/functions_workshop.R")
 
 ## Process scRNA-Seq data
 
+* One thing to consider is using the **SoupX** R package to control for extracellular ambient RNA contamination.
+  * The input for that tool are the hd5 files from cellranger per samples. The output is a is a filtered version of the barcode, features and matrix files
+
 #### 1. Create combined gex matrix
 ```{r}
 samples.vec   <- dir(dataset_loc)
 
-gex.matrix <- generateCombinedMatrix(dataset_loc, samples.vec,THREADS = 8,multi.results = F,
+gex.matrix <- generateCombinedMatrix(dataset_loc, samples.vec,THREADS = 1,multi.results = F,
                                      assay = "gex",min.genes.per.cell = 700,max.genes.per.cell = 2500)
 ```
 
@@ -81,11 +86,6 @@ seurat.obj@meta.data$sample <- sample_col
 ```
 
 #### 3. Identify Doublets
-
-Needed to have the following CRAN packages updated:
-  * dotCall64
-  * spam
-  * fields
 ```{r}
 set.seed(seed.number)
 
@@ -93,22 +93,34 @@ seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
 ```
 
 
-#### 4. Omit doublets and re-cluster
+#### 4. Omit doublets and all T cell V genes
+
+
+```{r}
+# Omit Doublets 
+cells_to_keep  <- names(seurat.obj$doublet_finder[seurat.obj$doublet_finder %in% "Singlet"])
+seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
+
+# Omit TCR V genes from object
+all_genes  <- row.names(seurat.obj)
+tcr_vgenes <- all_genes[grep("TRAV|TRBV|TRGV|TRDV",all_genes)]
+seurat.obj <- seurat.obj[! row.names(seurat.obj) %in% tcr_vgenes,]
+```
+
+#### *5. Per sample SCT normalization and integration
 
 * The Elbow plot can help determine an appropriate number of PCs to use
 ```{r}
 set.seed(seed.number)
-
-# Omit Doublets 
-cells_to_keep  <- names(seurat.obj$doublet_finder[seurat.obj$doublet_finder %in% "Singlet"])
-seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
 
 # Re-cluster
 seurat.obj   <- scaleAndClusterSeuratObject(seurat.obj,dims = 1:30,npca = 10,tsne = T)
 pc_elbowplot <- plotOptimalPCsforSeuratObject(seurat.obj)
 ```
 
-#### 5. Cell Type annotation
+#### *6. Cell Type annotation
+
+* SingleR and Azimuth
 ```{r}
 set.seed(seed.number)
 
@@ -132,7 +144,7 @@ hp4
 ```
 
 
-#### 6. QC filtering
+#### 7. QC filtering
 
 Omit cells with a high % mitochondrial transcripts as well as cells with high expression of Platelet genes (PPBP and PF4)
 

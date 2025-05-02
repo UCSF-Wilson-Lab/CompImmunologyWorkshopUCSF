@@ -44,6 +44,7 @@ vignettes/*.pdf
 .Renviron
 
 # Ignore data and objects
+data
 *data/
 *objects/
 *4_FindCandidates/

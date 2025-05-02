@@ -27,7 +27,7 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
 
 ## Dependencies
 
-This workshop supports **R v4.3.2** or later. Install instructions for all required R packages and software is provided on Box. 
+This workshop uses **R v4.5.0**, but should supports **R v4.4.2** or later. Install instructions for all required R packages and software is provided on Box. 
 
 **CRAN R packages to install:**
 ```{r}
@@ -82,5 +82,6 @@ BiocManager::install("clusterProfiler")
 
 **Github repos to install:**
 
+* [Azimuth](https://github.com/satijalab/azimuth "Azimuth")
 * [DoubletFinder](https://github.com/chris-mcginnis-ucsf/DoubletFinder "DoubletFinder")
 * [impactSingleCellToolkit](https://github.com/UCSF-Wilson-Lab/impactSingleCellToolkit "impactSingleCellToolkit")
