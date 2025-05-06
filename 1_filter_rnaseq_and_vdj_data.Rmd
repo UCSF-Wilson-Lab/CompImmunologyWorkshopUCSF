@@ -64,7 +64,7 @@ source("resources/functions_workshop.R")
 * Only B cells and T cells exist in this object
 
 ```{r}
-rnaseq_obj <- readRDS("objects/seurat.obj.processed.rds")
+rnaseq_obj_full <- readRDS("objects/seurat.obj.processed.rds")
 ```
 
 # 2. Load and format TCR/BCR repertoire results
@@ -106,7 +106,7 @@ tcr_df$unique_cell_id <- formatUniqueIDcolum(tcr_df$unique_cell_id)
 
 ### a. get vector of overlapping cells
 ```{r}
-cells_rnaseq      <- colnames(rnaseq_obj)
+cells_rnaseq      <- colnames(rnaseq_obj_full)
 cells_vdj         <- unique(c(bcr_df$unique_cell_id,
                               tcr_df$unique_cell_id))
 overlapping_cells <- cells_rnaseq[cells_rnaseq %in% cells_vdj]
@@ -115,22 +115,46 @@ overlapping_cells <- cells_rnaseq[cells_rnaseq %in% cells_vdj]
 
 ### b. filter rna-seq and vdj data
 * Even after filtering for cells that overlap with BCR/TCR data, there are still sparse clusters of cells annotated as different cell types
-```{r,fig.height=6,fig.width=14}
-# generate UMAP of cell type annotations pre-filtering
-p1_pre_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
-
+```{r}
 # only keep cells with vdj
-rnaseq_obj     <- rnaseq_obj[,colnames(rnaseq_obj) %in% overlapping_cells]
-bcr_df         <- bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,]
-tcr_df         <- tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,]
+rnaseq_obj     <- rnaseq_obj_full[,colnames(rnaseq_obj_full) %in% overlapping_cells]
 
-# post filter umap
-p2_post_filter <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+# add column to show which cells overlap with scRNA-Seq
+bcr_df$cell_overlap_status <- "no"
+tcr_df$cell_overlap_status <- "no"
 
-plot_grid(p1_pre_filter,p2_post_filter,ncol = 2)
+bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "yes"
+tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "yes"
 ```
 
-# 4. Add columns to VDJ data
+# 4. Plot cell before and after VDJ filter
+
+### a. SingleR annotations pre and post VDJ filter
+```{r,fig.height=6,fig.width=14}
+# generate UMAP of cell type annotations pre-filtering
+p1_pre_filter_singler <- DimPlot(object = rnaseq_obj_full, group.by="main_bencode", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+
+
+# post filter umap
+p2_post_filter_singler <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+
+plot_grid(p1_pre_filter_singler,p2_post_filter_singler,ncol = 2)
+```
+
+### b. Azimuth annotations pre and post VDJ filter
+```{r,fig.height=6,fig.width=14}
+# generate UMAP of cell type annotations pre-filtering
+p1_pre_filter_azimuth <- DimPlot(object = rnaseq_obj_full, group.by="predicted.celltype.l1", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+
+
+# post filter umap
+p2_post_filter_azimuth <- DimPlot(object = rnaseq_obj, group.by="predicted.celltype.l1", pt.size=1.0, label.size = 5, alpha = 0.7,label = T,reduction = "umap")
+
+plot_grid(p1_pre_filter_azimuth,p2_post_filter_azimuth,ncol = 2)
+```
+
+
+# 5. Add columns to VDJ data
 * This code block gets stuck when running. To fix this press **return** in the R console
 ```{r}
 # Add sample column
@@ -154,7 +178,7 @@ bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
 ```
 
 
-# 5. Re-cluster
+# 6. Re-cluster
 ```{r,fig.height=6,fig.width=14}
 set.seed(seed.number)
 rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:4,npca = 5,resolution = 0.3,

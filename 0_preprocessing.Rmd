@@ -89,22 +89,57 @@ sample_col <- tstrsplit(sample_col,"-")[[2]]
 seurat.obj@meta.data$sample <- sample_col
 ```
 
-#### 3. Identify Doublets
+#### 3. Identify Doublets and omit them
+
+*  If you are running this command locally, consider reducting the number of threads.
 ```{r}
 set.seed(seed.number)
 
 seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
-```
 
-
-#### 4. Omit doublets and all T cell V genes
-
-
-```{r}
 # Omit Doublets 
 cells_to_keep  <- names(seurat.obj$doublet_finder[seurat.obj$doublet_finder %in% "Singlet"])
 seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
+```
 
+#### 4. Run SingleR for automated celltype annotations
+
+* This annotation method performs better without per sample SCT integration
+
+##### a. generate SingleR results and add annotations back into the Seurat Object
+```{r}
+set.seed(seed.number)
+
+# Cluster all samples
+seurat.temp   <- scaleAndClusterSeuratObject(seurat.obj,normalize = T,dims = 1:30,npca = 10,tsne = T)
+
+# Generate SingleR Results
+singler_results_list <- runSingleRcelltypeAnnot(seurat.temp,blueprintencode.annot = T,monaco.annot = T)
+
+# Add celltype annotations back into Seurat Object
+seurat.temp          <- addSingleRcelltypeAnnotToSeuratObject(seurat.temp,singler_results_list)
+annot_meta           <- seurat.temp@meta.data[,c("main_bencode","fine_bencode","main_monaco","fine_monaco")]
+annot_meta           <- annot_meta[row.names(seurat.obj@meta.data),]
+seurat.obj@meta.data <- cbind(seurat.obj@meta.data, annot_meta)
+
+rm(seurat.temp)
+```
+
+##### b. plots - SingleR
+```{r}
+hp1 <- plotScoreHeatmap(singler_results_list$main_bencode)
+hp2 <- plotScoreHeatmap(singler_results_list$main_monaco)
+
+hp3 <- plotScoreHeatmap(singler_results_list$fine_bencode)
+hp4 <- plotScoreHeatmap(singler_results_list$fine_monaco)
+
+hp3
+hp4
+```
+
+
+#### 5. Omit all T cell V genes
+```{r}
 # Omit TCR V genes from object
 all_genes  <- row.names(seurat.obj)
 tcr_vgenes <- all_genes[grep("TRAV|TRBV|TRGV|TRDV",all_genes)]
@@ -112,7 +147,7 @@ seurat.obj <- seurat.obj[! row.names(seurat.obj) %in% tcr_vgenes,]
 ```
 
 
-#### 5. Per sample SCT normalization and integration
+#### 6. Per sample SCT normalization and integration
 
 * The Elbow plot can help determine an appropriate number of PCs to use
 ```{r}
@@ -150,9 +185,7 @@ seurat.obj   <- scaleAndClusterSeuratObject(seurat.obj,normalize = F,dims = 1:30
 pc_elbowplot <- plotOptimalPCsforSeuratObject(seurat.obj)
 ```
 
-#### 6. Automated Cell Type annotations
-
-##### a. Azimuth
+#### 7. Azimuth Automated Cell Type annotations
 
 * If you don't already have a reference installed, you can install the human PBMC referece 
   with the following command:
@@ -176,31 +209,9 @@ celltypes_azimuth <- celltypes_azimuth[,annot_cols]
 seurat.obj@meta.data <- cbind(seurat.obj@meta.data,celltypes_azimuth)
 ```
 
-##### b. SingleR
-```{r}
-set.seed(seed.number)
-
-# Generate SingleR Results
-singler_results_list <- runSingleRcelltypeAnnot(seurat.obj.annot,blueprintencode.annot = T,monaco.annot = T)
-
-# Add celltype annotations back into Seurat Object
-seurat.obj <- addSingleRcelltypeAnnotToSeuratObject(seurat.obj,singler_results_list)
-```
-
-##### c. plots - SingleR
-```{r}
-hp1 <- plotScoreHeatmap(singler_results_list$main_bencode)
-hp2 <- plotScoreHeatmap(singler_results_list$main_monaco)
-
-hp3 <- plotScoreHeatmap(singler_results_list$fine_bencode)
-hp4 <- plotScoreHeatmap(singler_results_list$fine_monaco)
-
-hp3
-hp4
-```
 
 
-#### 7. QC filtering
+#### 8. QC filtering
 
 Omit cells with a high % mitochondrial transcripts as well as cells with high expression of Platelet genes (PPBP and PF4)
 
@@ -211,11 +222,11 @@ seurat.obj <- subset(seurat.obj, subset = percent.mito < 10)
 
 ##### b. omit clusters dominated by platelet genes
 
-* While preparing the workshop, 2 clusters were omitted in this section
+* While preparing the workshop, 1 (sometimes 2) cluster was omitted in this section
 
 ```{r}
 GENE_PANEL <- c("PPBP", "PF4")
-CUTOFF     <- 0.06
+CUTOFF     <- 0.3
 
 # Check Platelet genes
 vln_plot_pre <- VlnPlot(seurat.obj, features = GENE_PANEL, layer = "counts", log = T,ncol = 1)
