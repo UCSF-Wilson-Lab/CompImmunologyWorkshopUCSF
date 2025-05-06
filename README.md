@@ -80,6 +80,12 @@ BiocManager::install("DOSE")
 BiocManager::install("clusterProfiler")
 ```
 
+**Install Seurat version 5.2.1 to avoid errors with cell type annotations**
+```{r}
+library(remotes)
+remotes::install_github("satijalab/seurat", ref = "v5.2.1")
+```
+
 **Github repos to install:**
 
 * [Azimuth](https://github.com/satijalab/azimuth "Azimuth")

@@ -12,6 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 * format analysis objects
 * This section is OPTIONAL
 
+## Prior to running this code:
+* Before starting set working directory to the **CompImmunologyWorkshopUCSF** folder
+  * setwd(**"[PATH]/CompImmunologyWorkshopUCSF"**)
 
 ## Load Libraries
 ```{r,warning=FALSE,message=FALSE}
@@ -26,6 +29,7 @@ suppressPackageStartupMessages(library(dowser))
 suppressPackageStartupMessages(library(glmGamPoi))
 suppressPackageStartupMessages(library(Seurat))
 suppressPackageStartupMessages(library(SeuratData))
+suppressPackageStartupMessages(library(SeuratObject))
 suppressPackageStartupMessages(library(Azimuth))
 suppressPackageStartupMessages(library(DoubletFinder))
 suppressPackageStartupMessages(library(SingleR))
@@ -107,31 +111,83 @@ tcr_vgenes <- all_genes[grep("TRAV|TRBV|TRGV|TRDV",all_genes)]
 seurat.obj <- seurat.obj[! row.names(seurat.obj) %in% tcr_vgenes,]
 ```
 
-#### *5. Per sample SCT normalization and integration
+
+#### 5. Per sample SCT normalization and integration
 
 * The Elbow plot can help determine an appropriate number of PCs to use
 ```{r}
 set.seed(seed.number)
 
+seurat.obj.list <- SplitObject(seurat.obj, split.by="sample")
+seurat.obj.list <- lapply(seurat.obj.list, function(x) {
+  SCTransform(x, return.only.var.genes = FALSE, verbose = FALSE)
+})
+  
+features <- SelectIntegrationFeatures(object.list = seurat.obj.list, nfeatures = 2000)
+  
+# Set variable features for each object to avoid SCT model conflicts
+for (i in 1:length(seurat.obj.list)) {
+  VariableFeatures(seurat.obj.list[[i]]) <- features
+}
+  
+# Prepare for integration
+seurat.obj.list <- PrepSCTIntegration(object.list = seurat.obj.list, anchor.features = features)
+
+# For larger cohorts it might be more ideal to select a smaller subset of the cohort
+# to serve as the anchor set. In this workshop, we are using all samples.
+# for example you could add in this arguement to the FindIntegrationAnchors command:
+#    reference = names(seurat.obj.list)[1:2] # This would consider only 2 of the samples as anchors
+anchors <- FindIntegrationAnchors(object.list = seurat.obj.list,
+                                    normalization.method = "SCT", 
+                                    anchor.features = features)
+# Integrate data
+# - integration layer will only have the variable to genes, but other layers will have all genes
+# - To include all genes, features.to.integrate = all_genes # all_genes is a vector will all gene names
+seurat.obj <- IntegrateData(anchorset = anchors, normalization.method = "SCT")
+
 # Re-cluster
-seurat.obj   <- scaleAndClusterSeuratObject(seurat.obj,dims = 1:30,npca = 10,tsne = T)
+seurat.obj   <- scaleAndClusterSeuratObject(seurat.obj,normalize = F,dims = 1:30,npca = 10,tsne = T)
 pc_elbowplot <- plotOptimalPCsforSeuratObject(seurat.obj)
 ```
 
-#### *6. Cell Type annotation
+#### 6. Automated Cell Type annotations
 
-* SingleR and Azimuth
+##### a. Azimuth
+
+* If you don't already have a reference installed, you can install the human PBMC referece 
+  with the following command:
+* **InstallData("pbmcref")**
+```{r}
+### Install reference if you don't have it. The line is current commented out
+# InstallData("pbmcref")
+
+# Change to SCT layer, which has both normalized and raw counts
+DefaultAssay(seurat.obj) <- "SCT"
+
+# Run Azimuth
+results_azimuth  <- RunAzimuth(seurat.obj, reference = "pbmcref")
+
+# Add annotations back into Seurat object
+celltypes_azimuth <- results_azimuth@meta.data
+annot_cols        <- names(celltypes_azimuth)
+annot_cols        <- annot_cols[annot_cols %in% c("predicted.celltype.l1","predicted.celltype.l2","predicted.celltype.l3")]
+celltypes_azimuth <- celltypes_azimuth[,annot_cols]
+
+seurat.obj@meta.data <- cbind(seurat.obj@meta.data,celltypes_azimuth)
+```
+
+##### b. SingleR
 ```{r}
 set.seed(seed.number)
 
 # Generate SingleR Results
-singler_results_list <- runSingleRcelltypeAnnot(seurat.obj,blueprintencode.annot = T,monaco.annot = T)
+singler_results_list <- runSingleRcelltypeAnnot(seurat.obj.annot,blueprintencode.annot = T,monaco.annot = T)
 
 # Add celltype annotations back into Seurat Object
 seurat.obj <- addSingleRcelltypeAnnotToSeuratObject(seurat.obj,singler_results_list)
 ```
 
-##### --plots
+##### c. plots - SingleR
 ```{r}
 hp1 <- plotScoreHeatmap(singler_results_list$main_bencode)
 hp2 <- plotScoreHeatmap(singler_results_list$main_monaco)
@@ -151,12 +207,6 @@ Omit cells with a high % mitochondrial transcripts as well as cells with high ex
 ##### a. omit cells with a high % mitochondrial genes
 ```{r}
 seurat.obj <- subset(seurat.obj, subset = percent.mito < 10)
-
-# Look at Variable genes
-data <- FindVariableFeatures(seurat.obj, selection.method = "vst", nfeatures = 2000)
-top10 <- head(VariableFeatures(data), 10)
-plot1 <- VariableFeaturePlot(data)
-LabelPoints(plot = plot1, points = top10, repel = T)
 ```
 
 ##### b. omit clusters dominated by platelet genes
@@ -165,16 +215,18 @@ LabelPoints(plot = plot1, points = top10, repel = T)
 
 ```{r}
 GENE_PANEL <- c("PPBP", "PF4")
-CUTOFF     <- 0.3
+CUTOFF     <- 0.06
 
 # Check Platelet genes
 vln_plot_pre <- VlnPlot(seurat.obj, features = GENE_PANEL, layer = "counts", log = T,ncol = 1)
 
 # Identify clusters with high expression of platelet genes
 avg_exp_per_clus <- AverageExpression(seurat.obj,features = GENE_PANEL,group.by = "seurat_clusters",assays = "SCT")
-avg_exp_per_clus <- avg_exp_per_clus$SCT %>% t() %>% as.data.frame()
+avg_exp_per_clus            <- avg_exp_per_clus$SCT %>% t() %>% as.data.frame()
+row.names(avg_exp_per_clus) <- str_replace_all(row.names(avg_exp_per_clus), "g","")
+
 avg_exp_per_clus$sum_exp_zscore <- rowSums(avg_exp_per_clus)
-avg_exp_per_clus$sum_exp_zscore <- scale(avg_exp_per_clus$sum_exp_zscore)
+avg_exp_per_clus$sum_exp_zscore <- as.numeric(scale(avg_exp_per_clus$sum_exp_zscore))
 
 # Omit clusters (there were two clusters omitted)
 clusters_to_omit <- row.names(avg_exp_per_clus[avg_exp_per_clus$sum_exp_zscore > CUTOFF,])
@@ -195,9 +247,13 @@ vln_plot_post <- VlnPlot(seurat.obj, features = GENE_PANEL, layer = "counts", lo
 saveRDS(seurat.obj,file = "objects/seurat.obj.processed.rds")
 ```
 
-### SingleR results
+### Celltype annotation results
 ```{r}
+# SingleR
 saveRDS(singler_results_list,file = "objects/singleR_celltype_annotations.rds")
+
+# Azimuth
+saveRDS(celltypes_azimuth,file = "objects/azimuth_celltype_annotations.rds")
 ```
 
 
