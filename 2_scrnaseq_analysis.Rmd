@@ -28,6 +28,7 @@ suppressPackageStartupMessages(library(kableExtra))
 suppressPackageStartupMessages(library(devtools))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(EnhancedVolcano))
 suppressPackageStartupMessages(library(RColorBrewer))
 suppressPackageStartupMessages(library(gridExtra))
 suppressPackageStartupMessages(library(cowplot))
@@ -41,6 +42,10 @@ source("resources/functions_workshop.R")
 # 1. Load Processed Objects
 ```{r}
 load("objects/processed_objects.RData")
+
+# Prepare objects for DGE
+tcell_obj <- PrepSCTFindMarkers(tcell_obj)
+bcell_obj <- PrepSCTFindMarkers(bcell_obj)
 ```
 
 
@@ -103,24 +108,21 @@ h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
 
 
 
-# 3. Differential Gene Expression
+# 3. Differential Gene Expression (DGE)
+
+* In this section we are using the standard DGE tools in Seurat
+* For more complex analyses, it is worth exporing the **dreamlet** R package which implements pseudobulk analyses
+
+### Optional - Load DGE results
 
 * If it slows down, pre-load DGE results for CSF vs. PB and skip code block 3a
 ```{r}
 load("objects/csf_vs_pb_DGE.RData")
 ```
 
-### a. CSF vs. PB
+### a. B cells - CSF vs. PB
 ```{r,eval=FALSE}
 TOP_N <- 100
-
-# Tcells
-Idents(tcell_obj) <- tcell_obj$compartment
-levels(tcell_obj) <- c("CSF","PB")
-
-dge_compartment_tcells_all <- FindAllMarkers(tcell_obj,logfc.threshold = 0.0,test.use = "wilcox")
-dge_compartment_tcells <- dge_compartment_tcells_all[dge_compartment_tcells_all$p_val_adj < 0.05,]
-top_genes_tcells       <- dge_compartment_tcells %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 
 # B cells
 Idents(bcell_obj) <- bcell_obj$compartment
@@ -131,32 +133,13 @@ dge_compartment_bcells <- dge_compartment_bcells_all[dge_compartment_bcells_all$
 top_genes_bcells       <- dge_compartment_bcells %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-#### Heatmaps - T cells
-```{r,fig.height=6,fig.width=9,warning=FALSE}
-Idents(tcell_obj) <- tcell_obj$compartment
-levels(tcell_obj) <- c("CSF","PB")
-
-p1 <- dittoHeatmap(tcell_obj, genes = top_genes_tcells$gene,
-        annot.by = c("compartment","status", "sub.celltype.annot"),
-        scaled.to.max = TRUE,
-        show_colnames = FALSE,
-        show_rownames = FALSE,
-        cluster_cols = FALSE,
-        main = "CSF vs. PB T cells")
-
-# CSF vs PB
-p1.2 <- DoHeatmap(tcell_obj,features = top_genes_tcells$gene)
-
-p1
-p1.2
-```
 
 #### Heatmaps - B cells
 ```{r,fig.height=6,fig.width=9,warning=FALSE}
 Idents(bcell_obj) <- bcell_obj$compartment
 levels(bcell_obj) <- c("CSF","PB")
 
-p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
+p1 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
         annot.by = c("compartment","status", "sub.celltype.annot"),
         scaled.to.max = TRUE,
         show_colnames = FALSE,
@@ -165,64 +148,100 @@ p2 <- dittoHeatmap(bcell_obj, genes = top_genes_bcells$gene,
         main = "CSF vs. PB B cells")
 
 # CSF vs PB
-p2.2 <- DoHeatmap(bcell_obj,features = top_genes_bcells$gene)
+p1.2 <- DoHeatmap(bcell_obj,features = top_genes_bcells$gene)
 
-p2
-p2.2
+p1
+p1.2
 ```
 
-#### DGE dot plots
+#### Volcano plot CSF DGE
 
-```{r,fig.height=5,fig.width=9,warning=FALSE}
-v1 <- plotDGEvolcano(dge_compartment_bcells_all,YLIM = c(0,10),title = "B cell DGE CSF vs. PB",cluster_filt = "CSF",
-                    p.adj.thresh = 0.05,show_top_genes = 20)
-v2 <- plotDGEvolcano(dge_compartment_tcells_all,YLIM = c(0,250),title = "T cell DGE CSF vs. PB",cluster_filt = "CSF",
-                    p.adj.thresh = 0.05,show_top_genes = 20)
+```{r,fig.height=7,fig.width=6,warning=FALSE}
+dge_compartment_bcells_csf <- dge_compartment_bcells_all[dge_compartment_bcells_all$cluster %in% "CSF",]
 
-plot_grid(v1,v2,nrow = 1)
+plot_volcano<- EnhancedVolcano(toptable = dge_compartment_bcells_csf,
+    lab = dge_compartment_bcells_csf$gene,
+    x = 'avg_log2FC',
+    y = 'p_val_adj',
+    ylim = c(0,-log2(10e-4)),
+    xlim = c(-3.5,3.5),
+    title = 'DGE Bcells CSF vs PB',
+    ylab = "-Log2(P)",
+    xlab = "avg_log2FC",
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1,
+    labSize = 3)
+
+plot_volcano
 ```
 
+# 4. T cell DGE - Expanded vs Non-Expanded Clones
 
-### b. T cells Expanded vs. Non-expanded (CSF)
+### a. run DGE on T cells Expanded vs. Non-expanded (CSF)
 ```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
 TOP_N <- 12
 Idents(tcell_obj_csf) <- tcell_obj_csf$expansion.subtype
 levels(tcell_obj_csf) <- c("Expanded CD8 T cells","Non-expanded CD8 T cells","Expanded CD4 T cells","Non-expanded CD4 T cells")
 
-dge_tcell_csf   <- FindAllMarkers(tcell_obj_csf,logfc.threshold = 0.1,test.use = "wilcox")
+dge_tcell_csf   <- FindAllMarkers(tcell_obj_csf,logfc.threshold = 0.0,test.use = "wilcox")
 dge_tcell_csf   <- dge_tcell_csf[dge_tcell_csf$p_val_adj < 0.05,]
 top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-#### - Plot T cells
+### b. Dot plot of top expanded and non-expanded genes
 ```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=11 | fig.height=7 for workshop
 
-DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF High vs. Non-Expanded") + coord_flip()
+DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF Expanded vs. Non-Expanded") + coord_flip()
+```
+
+### c. Dot plot of top expanded genes
+```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
+# fig.height=11 | fig.height=7 for workshop
+
+# table(dge_tcell_csf$cluster)
+top_expanded_tcells <- dge_tcell_csf[dge_tcell_csf$cluster %in% c("Expanded CD8 T cells","Expanded CD4 T cells"),]
+
+DotPlot(object = tcell_obj_csf,features = unique(top_expanded_tcells$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF Top Expanded Genes") + coord_flip()
 ```
 
 
+# 5. B cell DGE - Expanded vs Non-Expanded Clonotypes
 
-### c. B cells Expanded vs. Non-expanded (CSF and PB)
+### a. run DGE on B cells Expanded vs. Non-expanded (CSF and PB)
 ```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
 TOP_N <- 10
 Idents(bcell_obj_csfpb) <- bcell_obj_csfpb$expansion.subtype
-complete_order          <- c("Expanded Plasma cells","Non-expanded Plasma cells",
-                             "Expanded Memory B-cells","Non-expanded Memory B-cells",
-                             "Expanded naive B-cells","Non-expanded naive B-cells")
+complete_order          <- c("Expanded Plasmablast","Non-expanded Plasmablast",
+                             "Expanded B memory","Non-expanded B memory",
+                             "Expanded B intermediate","Non-expanded B intermediate",
+                             "Expanded B naive","Non-expanded B naive")
 complete_order_sub <- complete_order[complete_order %in% unique(bcell_obj_csfpb$expansion.subtype)]
 levels(bcell_obj_csfpb) <- complete_order_sub
 
-dge_bcell_csfpb   <- FindAllMarkers(bcell_obj_csfpb,logfc.threshold = 0.1,test.use = "wilcox")
+dge_bcell_csfpb   <- FindAllMarkers(bcell_obj_csfpb,logfc.threshold = 0.0,test.use = "wilcox")
 dge_bcell_csfpb   <- dge_bcell_csfpb[dge_bcell_csfpb$p_val_adj < 0.05,]
 top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-#### - Plot B cells
+### b. Dot plot of top genes
+
+* Explore the top DE genes for different expanded populatations
 ```{r,fig.height=17, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=17 | fig.height=9 for workshop
 
-DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF High vs. Non-Expanded") + coord_flip()
+
+
+DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF Expanded vs. Non-Expanded") + coord_flip()
+```
+
+### c. Dot plot of DE genes for one expanded B cell subtype
+```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
+# table(dge_bcell_csfpb$cluster)
+top_expanded <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% "Expanded B memory",]
+
+DotPlot(object = bcell_obj_csfpb,features = unique(top_expanded$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF Expanded vs. Non-Expanded") + coord_flip()
 ```
 
 # 4. Pathway analysis
@@ -240,11 +259,11 @@ suppressPackageStartupMessages(library(ggupset))
 ```
 
 ### a. B cells Memory
-```{r,fig.height=8, fig.width=7,echo=TRUE,warning=FALSE}
+```{r,fig.height=4, fig.width=7,echo=TRUE,warning=FALSE}
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
-target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Memory B-cells","Non-expanded Memory B-cells"),]
+target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded B memory","Expanded B intermediate","Expanded B naive"),]
 
 # Convert gene names to Entrez IDs
 de_genes <- mapIds(org.Hs.eg.db, target_genes$gene, 'ENTREZID', 'SYMBOL')
@@ -273,13 +292,6 @@ bcell_pathways_df    <- as.data.frame(bcell_pathways)
 
 # Top enriched pathways and the gene count within each pathway
 barplot(bcell_pathways, showCategory = 14)
-```
-
-#### Network of genes shared between pathways
-```{r,fig.height=6, fig.width=15,echo=TRUE,warning=FALSE}
-bcell_pathways_net <- pairwise_termsim(bcell_pathways,showCategory = 14)
-emapplot(bcell_pathways_net, showCategory = 14,
-         repel = T,cex_label_group = 0.5,layout = "star")
 ```
 
 
