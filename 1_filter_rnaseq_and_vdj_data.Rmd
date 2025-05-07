@@ -381,7 +381,7 @@ grid.arrange(p10,p11,nrow=1)
 tcell_annotation_col        <- rep("No Annot",nrow(tcr_df))
 names(tcell_annotation_col) <- tcr_df$unique_cell_id
 
-subtype_annotations_tcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "T cells",]
+subtype_annotations_tcr <- celltype_annot_df[celltype_annot_df$main.celltype.annot %in% "T cells",]
 for (subtype in unique(subtype_annotations_tcr$sub.celltype.annot)) {
   subtype_cells <- row.names(subtype_annotations_tcr[subtype_annotations_tcr$sub.celltype.annot %in% subtype,])
   tcell_annotation_col[names(tcell_annotation_col) %in% subtype_cells] <- subtype
@@ -392,7 +392,7 @@ tcr_df$SUBTYPE_ANNOTATION <- tcell_annotation_col
 bcell_annotation_col<- rep("No Annot",nrow(bcr_df))
 names(bcell_annotation_col) <- bcr_df$unique_cell_id
 
-subtype_annotations_bcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "B cells",]
+subtype_annotations_bcr <- celltype_annot_df[celltype_annot_df$main.celltype.annot %in% "B cells",]
 for (subtype in unique(subtype_annotations_bcr$sub.celltype.annot)) {
   subtype_cells    <- row.names(subtype_annotations_bcr[subtype_annotations_bcr$sub.celltype.annot %in% subtype,])
   bcell_annotation_col[names(bcell_annotation_col) %in% subtype_cells] <- subtype
@@ -461,7 +461,7 @@ cells <- names(rnaseq_obj$main.celltype.annot[rnaseq_obj$main.celltype.annot %in
 tcell_obj <- rnaseq_obj[,cells]
 ```
 
-### *b. sample breakdown
+### b. sample breakdown
 * Disease Patient has an increased proportion of B cells in the CSF of which most are memory B cells
 ```{r,fig.height=6, fig.width=7,warning=FALSE}
 p12 <- dittoBarPlot(rnaseq_obj, "sub.celltype.annot", group.by = "status.compartment", main = "All cells",color.panel = dittoColors()[1:6])

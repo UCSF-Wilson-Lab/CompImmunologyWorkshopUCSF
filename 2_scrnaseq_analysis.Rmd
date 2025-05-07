@@ -113,13 +113,6 @@ h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
 * In this section we are using the standard DGE tools in Seurat
 * For more complex analyses, it is worth exporing the **dreamlet** R package which implements pseudobulk analyses
 
-### Optional - Load DGE results
-
-* If it slows down, pre-load DGE results for CSF vs. PB and skip code block 3a
-```{r}
-load("objects/csf_vs_pb_DGE.RData")
-```
-
 ### a. B cells - CSF vs. PB
 ```{r,eval=FALSE}
 TOP_N <- 100
