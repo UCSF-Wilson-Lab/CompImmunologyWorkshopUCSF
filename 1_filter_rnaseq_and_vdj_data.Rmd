@@ -179,16 +179,31 @@ bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
 
 
 # 6. Re-cluster
+
+* This line should only be run once
 ```{r,fig.height=6,fig.width=14}
 set.seed(seed.number)
-rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:4,npca = 5,resolution = 0.3,
-                                          normalize = F,dim.reduction = T)
-
-p3_reclustered <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5,label = T,reduction = "umap")
-p4_reclustered <- DimPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=1.0,label.size = 5, label = T,reduction = "umap")
-
-plot_grid(p3_reclustered,p4_reclustered,ncol = 2)
+rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:6,npca = 5,resolution = 0.3,dim.reduction = T)
 ```
+
+# 7. Plot cell type annotations after re-clustering
+
+### a. SingleR
+```{r,fig.height=6,fig.width=14}
+p3_reclustered_singler <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5,label = T,reduction = "umap")
+p4_reclustered_singler <- DimPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=1.0,label.size = 5, label = T,reduction = "umap")
+
+plot_grid(p3_reclustered_singler,p4_reclustered_singler,ncol = 2)
+```
+
+### b. Azimuth
+```{r,fig.height=6,fig.width=17}
+p3_reclustered_azimuth <- DimPlot(object = rnaseq_obj, group.by="predicted.celltype.l1", pt.size=1.0, label.size = 5,label = T,reduction = "umap")
+p4_reclustered_azimuth <- DimPlot(object = rnaseq_obj, group.by="predicted.celltype.l2", pt.size=1.0,label.size = 5, label = T,reduction = "umap")
+
+plot_grid(p3_reclustered_azimuth,p4_reclustered_azimuth,ncol = 2)
+```
+
 
 ### ---------------
 
@@ -241,7 +256,7 @@ FeaturePlot(rnaseq_obj,features = tcell_panel,ncol = 3)
 
 #### gene panel for other cell types
 
-* Should not see an defined clusters for other cells types since these data
+* We should not see an defined clusters for other cells types since these data
   should only contain B cells and T cells
 * CD14+ Monocytes - LYZ, CD14
 * CD16+ Monocytes - MS4A7
@@ -289,67 +304,74 @@ plot_grid(p6,p4,ncol = 2,rel_heights = c(8,6),rel_widths = c(6,6))
 FeaturePlot(rnaseq_obj, features = c("CD8A", "CD8B"),blend = TRUE)
 ```
 
-```{r,fig.height=6,fig.width= 10}
-# SingleR Encode annotatons
-singler_annot_df <- rnaseq_obj@meta.data[,c("sample","seurat_clusters","main_bencode","fine_bencode","main.celltype.annot")]
+```{r,fig.height=9,fig.width= 10}
+# SingleR and Azimuth annotatons
+celltype_annot_df <- rnaseq_obj@meta.data[,c("sample","seurat_clusters","main_bencode","fine_bencode","main.celltype.annot","predicted.celltype.l1","predicted.celltype.l2")]
 
 # Manual T cell annotation based on CD8 expression
 CD8_pos_tcells           <- colnames(subset(rnaseq_obj, subset = CD8A > 0 | CD8B > 0))
-singler_annot_df$cd8_pos <- row.names(singler_annot_df)
-singler_annot_df$cd8_pos[singler_annot_df$cd8_pos %in% CD8_pos_tcells] <- "yes"
-singler_annot_df$cd8_pos[! singler_annot_df$cd8_pos %in% "yes"]        <- "no"
+celltype_annot_df$cd8_pos <- row.names(celltype_annot_df)
+celltype_annot_df$cd8_pos[celltype_annot_df$cd8_pos %in% CD8_pos_tcells] <- "yes"
+celltype_annot_df$cd8_pos[! celltype_annot_df$cd8_pos %in% "yes"]        <- "no"
 
 tcell_subtype_annotation <- names(rnaseq_obj$main.celltype.annot[rnaseq_obj$main.celltype.annot %in% "T cells"])
 CD8_pos_tcells <- tcell_subtype_annotation[tcell_subtype_annotation %in% CD8_pos_tcells]
 CD4_tcells     <- tcell_subtype_annotation[! tcell_subtype_annotation %in% CD8_pos_tcells]
 
-singler_annot_df$sub.celltype.annot <- singler_annot_df$main.celltype.annot
-singler_annot_df[row.names(singler_annot_df) %in% CD8_pos_tcells, "sub.celltype.annot"] <- "CD8 T cells"
-singler_annot_df[row.names(singler_annot_df) %in% CD4_tcells, "sub.celltype.annot"]     <- "CD4 T cells"
+celltype_annot_df$sub.celltype.annot <- celltype_annot_df$main.celltype.annot
+celltype_annot_df[row.names(celltype_annot_df) %in% CD8_pos_tcells, "sub.celltype.annot"] <- "CD8 T cells"
+celltype_annot_df[row.names(celltype_annot_df) %in% CD4_tcells, "sub.celltype.annot"]     <- "CD4 T cells"
 
 # Stacked bar
-# - Not all SingleR predictions for CD8+ T cells express CD8
-summary_main_bencode <- singler_annot_df %>% count(seurat_clusters, main_bencode, name = "count")
+# - Not all Celltype predictions for CD8+ T cells express CD8
+
+# SingleR
+summary_main_bencode <- celltype_annot_df %>% count(seurat_clusters, main_bencode, name = "count")
 levels(summary_main_bencode$main_bencode) <- sort(unique(summary_main_bencode$main_bencode))
 colors_main_bencode <- c("red","darkgreen","darkblue","purple","orange","grey")
 p7 <- ggplot(summary_main_bencode, aes(x = seurat_clusters, y = count, fill = main_bencode)) + geom_bar(stat = "identity",position = "fill") + scale_fill_manual(values = colors_main_bencode) + ggtitle("SingleR Cell-type Predictions")
 
-summary_subtype <- singler_annot_df %>% count(seurat_clusters, sub.celltype.annot, name = "count")
+# Azimuth
+summary_azimuth <- celltype_annot_df %>% count(seurat_clusters, predicted.celltype.l1, name = "count")
+levels(summary_azimuth$predicted.celltype.l1) <- sort(unique(summary_azimuth$predicted.celltype.l1))
+colors_azimuth <- c("red","darkgreen","darkblue","purple","orange","brown","black","grey")
+p8 <- ggplot(summary_azimuth, aes(x = seurat_clusters, y = count, fill = predicted.celltype.l1)) + geom_bar(stat = "identity",position = "fill") + scale_fill_manual(values = colors_azimuth) + ggtitle("Azimuth Cell-type Predictions")
+
+# Annotations based on BCR and TCR VDJ data
+summary_subtype <- celltype_annot_df %>% count(seurat_clusters, sub.celltype.annot, name = "count")
 levels(summary_subtype$sub.celltype.annot) <- sort(unique(summary_subtype$sub.celltype.annot))
 colors_subtype <- c("red","darkgreen","darkblue")
-p8 <- ggplot(summary_subtype, aes(x = seurat_clusters, y = count, fill = sub.celltype.annot)) + geom_bar(stat = "identity",position = "fill") + scale_fill_manual(values = colors_subtype) + ggtitle("Multiomics")
+p9 <- ggplot(summary_subtype, aes(x = seurat_clusters, y = count, fill = sub.celltype.annot)) + geom_bar(stat = "identity",position = "fill") + scale_fill_manual(values = colors_subtype) + ggtitle("Multiomics")
 
-plot_grid(p7,p8,ncol = 1,align = "v")
+plot_grid(p7,p8,p9,ncol = 1,align = "v")
 ```
 
-### c. Define B cell subtypes based on SingleR subtype annotations
-* SingleR
-* Training Data ENCODE
+### c. Define B cell subtypes based on Azimuth subtype annotations
 
 ```{r, fig.height=4, fig.width=10,warning=FALSE}
-singler_annot_df_bcr <- singler_annot_df[singler_annot_df$main.celltype.annot %in% "B cells",]
-uni_bcell_subtypes   <- unique(singler_annot_df$fine_bencode)
-non_bcell_subtypes   <- uni_bcell_subtypes[! uni_bcell_subtypes %in% c("naive B-cells","Memory B-cells","Plasma cells")]
+celltype_annot_df_bcr <- celltype_annot_df[celltype_annot_df$main.celltype.annot %in% "B cells",]
+uni_bcell_subtypes   <- unique(celltype_annot_df$predicted.celltype.l2)
+non_bcell_subtypes   <- uni_bcell_subtypes[! uni_bcell_subtypes %in% c("B naive","B memory","B intermediate","Plasmablast")]
 
 # For simplicity we will annotate non-B cell annotations as Naive B cells
 #  - Violin plots showed that these cells have virtually no IgG, IgA or V gene expression
-singler_annot_df_bcr$fine_bencode[singler_annot_df_bcr$fine_bencode %in% non_bcell_subtypes] <- "naive B-cells"
+celltype_annot_df_bcr$predicted.celltype.l2[celltype_annot_df_bcr$predicted.celltype.l2 %in% non_bcell_subtypes] <- "B naive"
 
 # Add B cell subtype annotations into sub.celltype.annot column
-for (bsubtype in unique(singler_annot_df_bcr$fine_bencode)) {
-  subset_cells <- row.names(singler_annot_df_bcr[singler_annot_df_bcr$fine_bencode %in% bsubtype,])
-  singler_annot_df[row.names(singler_annot_df) %in% subset_cells,"sub.celltype.annot"] <- bsubtype
+for (bsubtype in unique(celltype_annot_df_bcr$predicted.celltype.l2)) {
+  subset_cells <- row.names(celltype_annot_df_bcr[celltype_annot_df_bcr$predicted.celltype.l2 %in% bsubtype,])
+  celltype_annot_df[row.names(celltype_annot_df) %in% subset_cells,"sub.celltype.annot"] <- bsubtype
 }
 
 
 # Add subtype annotations back into RNA-Seq object
-rnaseq_obj$sub.celltype.annot <- singler_annot_df$sub.celltype.annot
+rnaseq_obj$sub.celltype.annot <- celltype_annot_df$sub.celltype.annot
 
 # Plot
-p9  <- dittoDimPlot(rnaseq_obj, "main.celltype.annot")
-p10 <- dittoDimPlot(rnaseq_obj, "sub.celltype.annot")
+p10  <- dittoDimPlot(rnaseq_obj, "main.celltype.annot")
+p11 <- dittoDimPlot(rnaseq_obj, "sub.celltype.annot")
 
-grid.arrange(p9,p10,nrow=1)
+grid.arrange(p10,p11,nrow=1)
 ```
 
 
@@ -383,11 +405,13 @@ bcr_df$SUBTYPE_ANNOTATION <- bcell_annotation_col
 * createCloneCountTable & addExpansionCategories are in functions_workshop.R
 
 ### a. generate clone count data frames
+
+* The clone counts are calculated based on the full VDJ data
 ```{r}
 clone_counts_tcr <- createCloneCountTable(tcr_df)
 clone_counts_bcr <- createCloneCountTable(bcr_df)
 
-# Can identify expanded clonotypes in the CSF with a high CSF:PB ratio
+# We can identify expanded clonotypes in the CSF with a high CSF:PB ratio
 clone_count_subset <- clone_counts_tcr[clone_counts_tcr$cell_count > 1 & clone_counts_tcr$CSF_count > 1, ]
 ```
 
@@ -437,23 +461,23 @@ cells <- names(rnaseq_obj$main.celltype.annot[rnaseq_obj$main.celltype.annot %in
 tcell_obj <- rnaseq_obj[,cells]
 ```
 
-### b. sample breakdown
+### *b. sample breakdown
 * Disease Patient has an increased proportion of B cells in the CSF of which most are memory B cells
 ```{r,fig.height=6, fig.width=7,warning=FALSE}
-p11 <- dittoBarPlot(rnaseq_obj, "sub.celltype.annot", group.by = "status.compartment", main = "All cells",color.panel = dittoColors()[1:4])
-p12 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartment", main = "B cells",color.panel = dittoColors()[3:4])
+p12 <- dittoBarPlot(rnaseq_obj, "sub.celltype.annot", group.by = "status.compartment", main = "All cells",color.panel = dittoColors()[1:6])
+p13 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartment", main = "B cells",color.panel = dittoColors()[1:4])
 
 
-plot_grid(p11,p12,nrow=2,align = "v")
+plot_grid(p12,p13,nrow=2,align = "v")
 ```
 
 ### c. clonotype expansion breakdown
 * Expanded T cell populations are observed in all compartments, while expanded B cells show more restriction
 ```{r,fig.height=6, fig.width=7,warning=FALSE}
-p11 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
-p12 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
+p14 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
+p15 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
 
-grid.arrange(p11,p12,nrow=2)
+grid.arrange(p14,p15,nrow=2)
 ```
 
 
