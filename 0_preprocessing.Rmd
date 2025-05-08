@@ -32,6 +32,7 @@ suppressPackageStartupMessages(library(SeuratData))
 suppressPackageStartupMessages(library(SeuratObject))
 suppressPackageStartupMessages(library(Azimuth))
 suppressPackageStartupMessages(library(DoubletFinder))
+suppressPackageStartupMessages(library(scrapper))
 suppressPackageStartupMessages(library(SingleR))
 
 suppressPackageStartupMessages(library(reshape2))
