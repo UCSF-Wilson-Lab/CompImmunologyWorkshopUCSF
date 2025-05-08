@@ -140,12 +140,12 @@ tcell_screp <- combineTCR(tcr.list,
   * aa     = CDR3 AA sequence
 ```{r,fig.height=3,fig.width=9}
 # fig.width=9 | fig.width=9 for workshop
-p_scr1 <- quantContig(bcell_screp, 
+p_scr1 <- clonalQuant(bcell_screp, 
             cloneCall="strict", 
             chain = "IGH", 
             scale = FALSE)
 
-p_scr2 <- quantContig(tcell_screp, 
+p_scr2 <- clonalQuant(tcell_screp, 
             cloneCall="strict", 
             chain = "both", 
             scale = FALSE)
@@ -177,7 +177,7 @@ plot_grid(p_scr5,p_scr6,ncol = 2)
 ```
 
 
-# 3. Gene usage
+# *3. Gene usage (change)
 * test different combinations
 * gene = V, J, D, C
 * plot = bar, heatmap
@@ -185,8 +185,9 @@ plot_grid(p_scr5,p_scr6,ncol = 2)
 ### a. BCR gene usage
 * CSF contains more restricted gene expression especially for V genes
 ```{r}
-vizGenes(bcell_screp, gene = "V", 
-         chain = "IGH", 
+vizGenes(bcell_screp,
+         x.axis = "IGHV",
+         y.axis = NULL, 
          plot = "bar", 
          scale = TRUE)
 ```
@@ -195,8 +196,9 @@ vizGenes(bcell_screp, gene = "V",
 
 * No **both** option for chain
 ```{r}
-vizGenes(tcell_screp, gene = "V", 
-         chain = "TRB", 
+vizGenes(tcell_screp, 
+         x.axis = "TRBV", 
+         y.axis = NULL,
          plot = "bar", 
          scale = TRUE)
 ```
@@ -206,11 +208,11 @@ vizGenes(tcell_screp, gene = "V",
 * CSF CDR3 AA lengths are extra short in the B cell repertoire
 
 ```{r,fig.height=3,fig.width=9}
-p_scr5 <- lengthContig(bcell_screp, 
+p_scr5 <- clonalLength(bcell_screp, 
              cloneCall="aa", 
              chain = "IGH") 
 
-p_scr6 <- lengthContig(tcell_screp, 
+p_scr6 <- clonalLength(tcell_screp, 
              cloneCall="aa", 
              chain = "TRB") 
 
@@ -225,16 +227,16 @@ plot_grid(p_scr5,p_scr6,ncol = 2)
 ### a. TCR shared clones
 ```{r,fig.height=7,fig.width=15}
 # Disease Patient
-p_scr7 <- compareClonotypes(tcell_screp, 
-                  numbers = 10,
+p_scr7 <- clonalCompare(tcell_screp, 
                   chain = "both",
+                  top.clones = 10,
                   samples = c("28_CSF", "28_PBMC"), 
                   cloneCall="aa", 
                   graph = "alluvial")
 # Healthy Control
-p_scr8 <- compareClonotypes(tcell_screp, 
-                  numbers = 10,
+p_scr8 <- clonalCompare(tcell_screp, 
                   chain = "both",
+                  top.clones = 10,
                   samples = c("32_CSF", "32_PBMC"), 
                   cloneCall="aa", 
                   graph = "alluvial")
@@ -250,16 +252,16 @@ plot_grid(p_scr7,p_scr8)
 * The Disease patient contains more shared clonotypes between PBMC and CSF
 ```{r,fig.height=5,fig.width=15}
 # Disease Patient
-p_scr9 <- compareClonotypes(bcell_screp, 
+p_scr9 <- clonalCompare(bcell_screp, 
                   chain = "IGH",
-                  numbers = NULL,
+                  top.clones = NULL,
                   samples = c("28_CSF", "28_PBMC"), 
                   cloneCall="strict", 
                   graph = "alluvial")
 # Healthy Control
-p_scr10 <- compareClonotypes(bcell_screp, 
+p_scr10 <- clonalCompare(bcell_screp, 
                   chain = "IGH",
-                  numbers = NULL,
+                  top.clones = NULL,
                   samples = c("32_CSF", "32_PBMC"), 
                   cloneCall="strict", 
                   graph = "alluvial")
@@ -272,13 +274,13 @@ plot_grid(p_scr9,p_scr10)
 * Healthy patient has more clones that are a even mixture between PBMC and CSF
 ```{r,fig.height=4,fig.width=11}
 # fig.width=11 | fig.width=10 for workshop
-p_scr11 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
+p_scr11 <- clonalScatter(tcell_screp, cloneCall ="aa", 
                  x.axis = "28_CSF", 
                  y.axis = "28_PBMC",
                  dot.size = "total",
                  graph = "proportion")
 
-p_scr12 <- scatterClonotype(tcell_screp, cloneCall ="aa", 
+p_scr12 <- clonalScatter(tcell_screp, cloneCall ="aa", 
                  x.axis = "32_CSF", 
                  y.axis = "32_PBMC",
                  dot.size = "total",
