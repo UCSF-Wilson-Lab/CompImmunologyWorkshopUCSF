@@ -558,14 +558,14 @@ set.seed(seed.number)
 plot(tcr_gliph_net,layout = layout_with_fr, main = "TCR GLIPH Net - CSF highly expanded")
 ```
 
+### -----------------------------
 
 
-
-# 6. Format Results for a Query in VDJdb (CSF only)
+# Format Results for a Query in VDJdb (CSF only)
 
 format CSF TCR results for upload to VDJ db
 
-### a. add clonotype frequencies to TCR CSF results
+# 1. Add clonotype frequencies to TCR CSF results
 ```{r}
 # Transfer clonotype Freq back to full results
 tcr_results_csf <- tcr_results_gliph[tcr_results_gliph$COMPARTMENT %in% "CSF",]
@@ -586,7 +586,7 @@ tcr_results_csf$CLONE_COUNT <- clonotype_count
 tcr_results_csf$CLONE_FREQ  <- clonotype_freq
 ```
 
-### b. format table to meet VDJdb format
+# 2. format table to meet VDJdb format
 ```{r}
 cols_to_keep  <- c("CLONE_COUNT","CLONE_FREQ","junction","junction_aa","v_call","d_call","j_call")
 fmt_col_names <- c("count","frequency","CDR3nt","CDR3aa","V","D","J")
@@ -602,7 +602,7 @@ fmt_tcr_results$Jstart <- ""
 
 ```
 
-# 7. Output table and upload to VDJdb
+# 3. Output table and upload to VDJdb
 
 VDJdb <https://vdjdb.cdr3.net/>
 1. You will need to create an account or login temporarily.
@@ -614,9 +614,11 @@ write.table(fmt_tcr_results,file = "4_FindCandidates/table_for_VDJdb_CSF.txt",qu
 ```
 
 
-# 8. Assembling monoclonals
+### -----------------------------
 
-### a. BCR - assemble FR and CDRs for clonotypes of interest
+# Assembling Monoclonals
+
+# 1. BCR - assemble FR and CDRs for clonotypes of interest
 ```{r}
 # B cells
 target_bcr <- clone_counts_bcr[clone_counts_bcr$CSF_count >= 2,]
@@ -639,7 +641,7 @@ target_bcr_df$antibody_seq <- str_replace_all(target_bcr_df$antibody_seq,"\\.","
 target_bcr_df_sub <- target_bcr_df[,c("unique_cell_id","locus","v_call","d_call","j_call","clone_id","antibody_seq")]
 ```
 
-### b. TCR - assemble FR and CDRs for clonotypes of interest
+# 2. TCR - assemble FR and CDRs for clonotypes of interest
 ```{r}
 # T cells
 target_tcr <- clone_counts_tcr[clone_counts_tcr$CSF_PB_ratio > 1,]
@@ -663,7 +665,7 @@ target_tcr_df$tcr_seq <- str_replace_all(target_tcr_df$tcr_seq,"\\.","")
 target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call","j_call","clone_id","tcr_seq")]
 ```
 
-### c. Other tools
+# 3. Other tools
 
 ### --stichr (TCRs only)
 * https://github.com/JamieHeather/stitchr
@@ -684,5 +686,9 @@ target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call"
 gui_stitchr
 ```
 
+
+### -----------------------------
+
+# BONUS - Finding Canditate Antigens
 
 

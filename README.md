@@ -27,7 +27,7 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
 
 ## Dependencies
 
-This workshop uses **R v4.5.0**, but should supports **R v4.4.2** or later. Install instructions for all required R packages and software is provided on Box. 
+This workshop uses **R v4.5.0** and packages installed with **Bioconductor 3.21**. Install instructions for all required R packages and software is provided on Box. 
 
 **CRAN R packages to install:**
 ```{r}
@@ -69,6 +69,7 @@ if (!require("BiocManager", quietly = TRUE))
 
 BiocManager::install("scRepertoire")
 BiocManager::install("SingleCellExperiment")
+BiocManager::install("scrapper")
 BiocManager::install("SingleR")
 BiocManager::install("celldex")
 BiocManager::install("Biostrings")
