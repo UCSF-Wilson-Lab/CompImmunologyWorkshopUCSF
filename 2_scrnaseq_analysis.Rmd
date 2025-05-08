@@ -224,8 +224,6 @@ top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N,
 ```{r,fig.height=17, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=17 | fig.height=9 for workshop
 
-
-
 DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF Expanded vs. Non-Expanded") + coord_flip()
 ```
 
@@ -284,7 +282,7 @@ bcell_pathways       <- enrichPathway(gene=de,pvalueCutoff=0.05, readable=T)
 bcell_pathways_df    <- as.data.frame(bcell_pathways)
 
 # Top enriched pathways and the gene count within each pathway
-barplot(bcell_pathways, showCategory = 14)
+barplot(bcell_pathways, showCategory = 10)
 ```
 
 
@@ -343,7 +341,7 @@ barplot(tcell_pathways, showCategory=10)
 #### Network of genes shared between pathways
 ```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
 tcell_pathways_net <- pairwise_termsim(tcell_pathways,showCategory = 25)
-emapplot(tcell_pathways_net, showCategory = 25,repel = T,cex_label_group = 0.5,layout = "kk")
+emapplot(tcell_pathways_net, showCategory = 25,layout = "kk")
 ```
 
 #### Network of Pathways and genes (DisGeNET database)
