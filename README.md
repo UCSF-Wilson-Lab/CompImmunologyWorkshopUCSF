@@ -20,7 +20,8 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
   │   └── all_CSF_GLIPH2
   ├── data
   │   ├── input_immcantation
-  │   └── results_immcantation
+  │   ├── results_immcantation
+  │   └── input_antigen_discovery
   ├── objects
   └── resources
 ```
@@ -50,6 +51,8 @@ install.packages(c("devtools",
                    "dplyr",
                    "stringr",
                    "reshape2",
+                   "gplots",
+                   "pheatmap",
                    "ggplot2",
                    "RColorBrewer",
                    "stringdist",
