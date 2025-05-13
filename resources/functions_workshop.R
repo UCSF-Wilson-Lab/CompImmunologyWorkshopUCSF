@@ -373,3 +373,42 @@ getGroupSampleOrderHeatmap <- function(plot_df,select_samples,select_peptides = 
   return(hc_sample_order)
 }
 
+# Cluster peptide rows by viral family
+clusterRowsByViralFamily <- function(plot_df,metadata_vir,fam_order_to_top = NULL) {
+  peptide_rownames <- row.names(plot_df)
+  
+  # get unique families from this list
+  plot_meta <- metadata_vir[metadata_vir$peptide %in% peptide_rownames,]
+  plot_meta$family[plot_meta$family %in% ""] <- "N/A"
+  uni_ordered_fam <- names(sort(table(plot_meta$family),decreasing = T))
+  
+  if(!is.null(fam_order_to_top)){
+    uni_ordered_fam_sub <- uni_ordered_fam[! uni_ordered_fam %in% fam_order_to_top]
+    uni_ordered_fam     <- c(fam_order_to_top,uni_ordered_fam_sub)
+  }
+  
+  # Initialize final row annotation df
+  row_annot_df <- data.frame(matrix(nrow = nrow(plot_df), ncol = 1))
+  names(row_annot_df) <- c("family")
+  
+  ordered_peptide_list <- c()
+  ordered_family_list <- c()
+  for (fam in uni_ordered_fam) {
+    fam_peps <- plot_meta[plot_meta$family %in% fam,"peptide"]
+    ordered_family_list  <- c(ordered_family_list,rep(fam,length(fam_peps)))
+    
+    if(length(fam_peps) > 2){
+      clustered_pep_order <- getGroupPeptideOrderHeatmap(plot_df,select_samples = names(plot_df),select_peptides = fam_peps)
+      ordered_peptide_list <- c(ordered_peptide_list,clustered_pep_order)
+    } else{
+      ordered_peptide_list <- c(ordered_peptide_list,fam_peps)
+    }
+  }
+  row_annot_df$family     <- ordered_family_list
+  row.names(row_annot_df) <- ordered_peptide_list
+  
+  return(row_annot_df)
+}
+
+
+

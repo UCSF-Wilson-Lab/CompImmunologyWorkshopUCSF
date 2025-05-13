@@ -747,13 +747,14 @@ df_plot_pep <- df_pep_log[row.names(df_pep_log) %in% top_pep_mab_peptides,]
 
 # list mAb and Control samples
 all_cols <- names(df_plot_pep)
-mab_samples     <- all_cols[grep("mAb",all_cols)]
+mab1_samples    <- all_cols[grep("mAb1",all_cols)]
+mab2_samples    <- all_cols[grep("mAb2",all_cols)]
 control_samples <- all_cols[grep("Control",all_cols)]
 
 # Cluster sample columns, specifically the controls
 control_samples_ordered <- getGroupSampleOrderHeatmap(df_plot_pep,select_samples = control_samples,select_peptides = row.names(df_plot_pep))
 
-df_plot_pep <- df_plot_pep[,c(mab_samples,control_samples_ordered)]
+df_plot_pep <- df_plot_pep[,c(mab1_samples,mab2_samples,control_samples_ordered)]
 
 # Cluster peptide rows and keep peptides from the same gene together
 pep_order <- c()
@@ -795,7 +796,7 @@ color_pal  <- bluered(100)
 ```
 
 
-### d. plot heatmap
+### d. plot heatmap - top candidate autoantigens
 ```{r,fig.height=6, fig.width=6}
 hp_pep <- pheatmap(as.matrix(df_plot_pep),cluster_rows = F,cluster_cols = F,
                 show_rownames = T,show_colnames = T, gaps_col = c(2,4),
@@ -804,3 +805,112 @@ hp_pep <- pheatmap(as.matrix(df_plot_pep),cluster_rows = F,cluster_cols = F,
                 fontsize = 7)
 hp_pep
 ```
+
+
+# 3. Identify highly enriched viral antigens targeted by mAbs
+
+### a. mAb1 filter for highly enriched peptides
+```{r}
+# filter for peptides only enriched in one target mAb
+top_hits_vir_mab1 <- results_vir[results_vir$samples_enriched_mAb1 > 0,]
+top_hits_vir_mab1 <- top_hits_vir_mab1[top_hits_vir_mab1$sum_expression_controls < 10,]
+
+# Filter further for peptides enriched across replicates
+top_hits_vir_mab1 <- top_hits_vir_mab1[top_hits_vir_mab1$samples_enriched_mAb1 == 2,]
+
+# Only keep human viruses
+top_hits_vir_mab1 <- top_hits_vir_mab1[top_hits_vir_mab1$human_virus_status %in% "yes",]
+```
+
+### b. mAb2 filter for highly enriched peptides
+```{r}
+# filter for peptides only enriched in one target mAb
+top_hits_vir_mab2 <- results_vir[results_vir$samples_enriched_mAb2 > 0,]
+top_hits_vir_mab2 <- top_hits_vir_mab2[top_hits_vir_mab2$sum_expression_controls < 10,]
+
+# Filter further for peptides enriched across replicates
+top_hits_vir_mab2 <- top_hits_vir_mab2[top_hits_vir_mab2$samples_enriched_mAb2 == 2,]
+
+# Only keep human viruses
+top_hits_vir_mab2 <- top_hits_vir_mab2[top_hits_vir_mab2$human_virus_status %in% "yes",]
+```
+
+
+### c. prepare plot dataframe plus cluster rows and columns
+```{r}
+top_vir_mab_peptides <- unique(c(top_hits_vir_mab1$peptide,top_hits_vir_mab2$peptide))
+
+df_plot_vir <- df_vir_log[row.names(df_vir_log) %in% top_vir_mab_peptides,]
+
+# list mAb and Control samples
+all_cols <- names(df_plot_vir)
+mab1_samples     <- all_cols[grep("mAb1",all_cols)]
+mab2_samples     <- all_cols[grep("mAb2",all_cols)]
+control_samples <- all_cols[grep("Control",all_cols)]
+
+# Cluster sample columns, specifically the controls
+control_samples_ordered <- getGroupSampleOrderHeatmap(df_plot_vir,select_samples = control_samples,select_peptides = row.names(df_plot_vir))
+
+df_plot_vir <- df_plot_vir[,c(mab1_samples,mab2_samples,control_samples_ordered)]
+
+
+# Cluster peptide rows and keep peptides from the same viral family together
+metadata_vir <- results_vir[results_vir$peptide %in% top_vir_mab_peptides,]
+metadata_vir <- metadata_vir[,c("peptide","family","species","sequence")]
+row.names(metadata_vir) <- metadata_vir$peptide
+
+row_annot     <- clusterRowsByViralFamily(df_plot_vir,metadata_vir)
+pep_order_vir <- row.names(row_annot)
+
+df_plot_vir <- df_plot_vir[pep_order_vir,]
+
+# order the peptide metadata the same way as the clustered plot dataframe
+metadata_vir <- metadata_vir[pep_order_vir,]
+```
+
+
+### d. setup heatmap parameters
+```{r}
+# Column annotations
+col_annot            <- as.data.frame(names(df_plot_vir))
+names(col_annot)     <- "type"
+row.names(col_annot) <- col_annot$type
+col_annot$type       <- str_replace_all(col_annot$type,"MS_patient1_|MS_patient2_","")
+col_annot$type       <- tstrsplit(col_annot$type,"_")[[1]]
+
+colcolor        <- c("purple","darkred","darkgreen")
+names(colcolor) <- c("mAb1","mAb2","Control")
+
+# Row annotation colors
+uni_fam  <- unique(metadata_vir$family)
+rowcolor <- brewer.pal(n = 8, name = "Dark2")
+rowcolor <- rowcolor[1:length(uni_fam)]
+names(rowcolor) <- uni_fam
+
+ANNOT_COLORS_VIR    <- list(type = colcolor,family=rowcolor)
+
+# Custom color scheme with a break list from -1 to 4
+break_1 <- seq(-1,1,0.04)  # first 51 breaks
+break_2 <- seq(1,4,0.06)  # last 50 breaks
+break_2 <- break_2[3:length(break_2)]
+break_list <- c(break_1,break_2)
+
+color_pal  <- bluered(100)
+```
+
+
+### e. plot heatmap - top candidate viral antigens
+
+* View **metadata_vir** while looking at this heatmap to get more info on each peptide.
+```{r,fig.height=4, fig.width=12}
+hp_vir <- pheatmap(as.matrix(df_plot_vir),cluster_rows = F,cluster_cols = F,
+                show_rownames = T,show_colnames = T, gaps_col = c(2,4),
+                annotation_col = col_annot,annotation_row = row_annot,
+                annotation_colors = ANNOT_COLORS_VIR,
+                border_color = NA,color = color_pal,breaks = break_list,
+                fontsize = 5)
+hp_vir
+```
+
+
+
