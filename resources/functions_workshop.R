@@ -335,3 +335,41 @@ formatTCRmabTable <- function(mab_table) {
   return(mab_table)
 }
 
+
+# 4. Candidate Antigen Plot Functions --------------------
+
+# peptide clustering
+getGroupPeptideOrderHeatmap <- function(plot_df,select_samples,select_peptides = NULL) {
+  # Get matrix of sample subset
+  plot_df     <- plot_df[,names(plot_df) %in% select_samples]
+  if(!is.null(select_peptides)){
+    plot_df     <- plot_df[row.names(plot_df) %in% select_peptides,]
+  }
+  heatmap_mtx <- as.matrix(plot_df)
+  
+  # 1 - Heirarchical clustering - all peptides first 
+  d        <- dist(heatmap_mtx)
+  hc       <- hclust(d)
+  hc_peptide_order <- rownames(heatmap_mtx)[hc$order]
+  
+  return(hc_peptide_order)
+}
+
+
+# sample clustering
+getGroupSampleOrderHeatmap <- function(plot_df,select_samples,select_peptides = NULL) {
+  # Get matrix of sample subset
+  plot_df     <- plot_df[,names(plot_df) %in% select_samples]
+  if(!is.null(select_peptides)){
+    plot_df <- plot_df[row.names(plot_df) %in% select_peptides,]
+  }
+  heatmap_mtx <- t(as.matrix(plot_df))
+  
+  # Heirarchical clustering 
+  d        <- dist(heatmap_mtx)
+  hc       <- hclust(d)
+  hc_sample_order <- rownames(heatmap_mtx)[hc$order]
+  
+  return(hc_sample_order)
+}
+

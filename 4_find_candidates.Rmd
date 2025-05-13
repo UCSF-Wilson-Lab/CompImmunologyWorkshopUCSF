@@ -28,6 +28,8 @@ suppressPackageStartupMessages(library(reshape2))
 suppressPackageStartupMessages(library(kableExtra))
 suppressPackageStartupMessages(library(devtools))
 suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(gplots))
+suppressPackageStartupMessages(library(pheatmap))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(RColorBrewer))
 suppressPackageStartupMessages(library(gridExtra))
@@ -41,11 +43,18 @@ seed.number <- 1234
 results_dir_gliph2 <- "4_FindCandidates/all_CSF_GLIPH2"
 dir.create(results_dir_gliph2,recursive = T)
 
+# Bonus section inputs
+counts_pep_fh  <- "data/input_antigen_discovery/input_counts_mAbs_phipseq_peptidome.csv"
+counts_vir_fh  <- "data/input_antigen_discovery/input_counts_mAbs_phipseq_virome.csv"
+results_pep_fh <- "data/input_antigen_discovery/results_enriched_peptides_peptidome.csv"
+results_vir_fh <- "data/input_antigen_discovery/results_enriched_peptides_virome.csv"
+
+
 source("resources/functions_workshop.R")
 ```
 
 
-# 1. Load Processed Objects
+# Load Processed Objects
 ```{r,warning=FALSE}
 load("objects/processed_objects.RData")
 ```
@@ -691,4 +700,107 @@ gui_stitchr
 
 # BONUS - Finding Canditate Antigens
 
+# 1. Load input dataframes
 
+### a. load inputs and results
+```{r}
+# autoantigen screen
+df_pep <- read.csv(counts_pep_fh,stringsAsFactors = F,row.names = 1)
+results_pep <- read.csv(results_pep_fh,stringsAsFactors = F)
+
+# viral antigen screen
+df_vir <- read.csv(counts_vir_fh,stringsAsFactors = F,row.names = 1)
+results_vir <- read.csv(results_vir_fh,stringsAsFactors = F)
+```
+
+### b. apply log10 to normalized counts
+```{r}
+df_pep_log <- log10(df_pep + 1)
+df_vir_log <- log10(df_vir + 1)
+```
+
+# 2. Identify highly enriched autoantigens targeted by mAbs
+
+### a. mAb1 filter for highly enriched peptides
+
+* Use this code for mAb1 and mAb2. To plot the top enriched peptides for mAb2, change **samples_enriched_mAb1** to **samples_enriched_mAb2**.
+```{r}
+TOP_PEPTIDES <- 50
+
+# filter for peptides only enriched in one target mAb
+top_hits_pep_mab <- results_pep[results_pep$samples_enriched_mAb1 > 0,]
+top_hits_pep_mab <- top_hits_pep_mab[top_hits_pep_mab$sum_expression_controls < 10,]
+
+# Create a ratio of summed expression of mAb relative to the controls
+top_hits_pep_mab$ratio <- (top_hits_pep_mab$sum_expression_mAb1 + 1) / (top_hits_pep_mab$sum_expression_controls + 1)
+
+# Sort by this ratio
+top_hits_pep_mab            <- top_hits_pep_mab[order(top_hits_pep_mab$ratio,decreasing = T),]
+top_pep_mab_peptides        <- top_hits_pep_mab$peptide_id[1:TOP_PEPTIDES]
+names(top_pep_mab_peptides) <- tstrsplit(top_pep_mab_peptides,"_")[[1]]
+top_ordered_genes           <- unique(names(top_pep_mab_peptides))
+```
+
+### b. prepare plot dataframe plus cluster rows and columns
+```{r}
+df_plot_pep <- df_pep_log[row.names(df_pep_log) %in% top_pep_mab_peptides,]
+
+# list mAb and Control samples
+all_cols <- names(df_plot_pep)
+mab_samples     <- all_cols[grep("mAb",all_cols)]
+control_samples <- all_cols[grep("Control",all_cols)]
+
+# Cluster sample columns, specifically the controls
+control_samples_ordered <- getGroupSampleOrderHeatmap(df_plot_pep,select_samples = control_samples,select_peptides = row.names(df_plot_pep))
+
+df_plot_pep <- df_plot_pep[,c(mab_samples,control_samples_ordered)]
+
+# Cluster peptide rows and keep peptides from the same gene together
+pep_order <- c()
+for (gene in top_ordered_genes) {
+  gene_peps <- top_pep_mab_peptides[names(top_pep_mab_peptides) %in% gene]
+  
+  if(length(gene_peps) > 1){
+    pep_order_gene <- getGroupPeptideOrderHeatmap(df_plot_pep,select_samples = names(df_plot_pep),select_peptides = gene_peps)
+  } else{
+    pep_order_gene <- gene_peps
+  }
+  pep_order <- c(pep_order,pep_order_gene)
+}
+
+df_plot_pep <- df_plot_pep[pep_order,]
+```
+
+
+### c. setup heatmap parameters
+```{r}
+# Column annotations
+col_annot            <- as.data.frame(names(df_plot_pep))
+names(col_annot)     <- "type"
+row.names(col_annot) <- col_annot$type
+col_annot$type       <- str_replace_all(col_annot$type,"MS_patient1_|MS_patient2_","")
+col_annot$type       <- tstrsplit(col_annot$type,"_")[[1]]
+
+colcolor        <- c("purple","darkred","darkgreen")
+names(colcolor) <- c("mAb1","mAb2","Control")
+ANNOT_COLORS    <- list(type = colcolor)
+
+# Custom color scheme with a break list from -1 to 4
+break_1 <- seq(-1,1,0.04)  # first 51 breaks
+break_2 <- seq(1,4,0.06)  # last 50 breaks
+break_2 <- break_2[3:length(break_2)]
+break_list <- c(break_1,break_2)
+
+color_pal  <- bluered(100)
+```
+
+
+### d. plot heatmap
+```{r,fig.height=6, fig.width=6}
+hp_pep <- pheatmap(as.matrix(df_plot_pep),cluster_rows = F,cluster_cols = F,
+                show_rownames = T,show_colnames = T, gaps_col = c(2,4),
+                annotation_col = col_annot,annotation_colors = ANNOT_COLORS,
+                border_color = NA,color = color_pal,breaks = break_list,
+                fontsize = 7)
+hp_pep
+```
