@@ -114,7 +114,7 @@ h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
 * For more complex analyses, it is worth exporing the **dreamlet** R package which implements pseudobulk analyses
 
 ### a. B cells - CSF vs. PB
-```{r,eval=FALSE}
+```{r}
 TOP_N <- 100
 
 # B cells
