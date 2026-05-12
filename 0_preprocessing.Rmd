@@ -35,7 +35,7 @@ suppressPackageStartupMessages(library(SeuratData))
 suppressPackageStartupMessages(library(SeuratObject))
 suppressPackageStartupMessages(library(Azimuth))
 suppressPackageStartupMessages(library(DoubletFinder))
-#suppressPackageStartupMessages(library(SingleR))
+suppressPackageStartupMessages(library(SingleR))
 
 suppressPackageStartupMessages(library(reshape2))
 suppressPackageStartupMessages(library(kableExtra))
@@ -51,6 +51,9 @@ suppressPackageStartupMessages(library(impactSingleCellToolkit))
 
 # scRNA-Seq
 dataset_loc <- "data/gex"
+
+# Pre-generated SingleR results - provided for the workshop
+results_singler_fh <- "objects/singleR_celltype_annotations.rds"
 
 seed.number <- 123
 
@@ -113,34 +116,35 @@ seurat.obj     <- seurat.obj[,colnames(seurat.obj) %in% cells_to_keep]
 ##### a. generate SingleR results and add annotations back into the Seurat Object
 
 ```{r}
-#set.seed(seed.number)
+set.seed(seed.number)
 
 ## Cluster all samples
-#seurat.temp   <- scaleAndClusterSeuratObject(seurat.obj,normalize = T,dims = 1:30,npca = 10,tsne = T)
+seurat.temp   <- scaleAndClusterSeuratObject(seurat.obj,normalize = T,dims = 1:30,npca = 10,tsne = T)
 
 ## Generate SingleR Results
 #singler_results_list <- runSingleRcelltypeAnnot(seurat.temp,blueprintencode.annot = T,monaco.annot = T)
+singler_results_list <- readRDS(results_singler_fh)
 
 ## Add celltype annotations back into Seurat Object
-#seurat.temp          <- addSingleRcelltypeAnnotToSeuratObject(seurat.temp,singler_results_list)
-#annot_meta           <- seurat.temp@meta.data[,c("main_bencode","fine_bencode","main_monaco","fine_monaco")]
-#annot_meta           <- annot_meta[row.names(seurat.obj@meta.data),]
-#seurat.obj@meta.data <- cbind(seurat.obj@meta.data, annot_meta)
+seurat.temp          <- addSingleRcelltypeAnnotToSeuratObject(seurat.temp,singler_results_list)
+annot_meta           <- seurat.temp@meta.data[,c("main_bencode","fine_bencode","main_monaco","fine_monaco")]
+annot_meta           <- annot_meta[row.names(seurat.obj@meta.data),]
+seurat.obj@meta.data <- cbind(seurat.obj@meta.data, annot_meta)
 
-#rm(seurat.temp)
+rm(seurat.temp)
 ```
 
 ##### b. plots - SingleR
 
 ```{r}
-#hp1 <- plotScoreHeatmap(singler_results_list$main_bencode)
-#hp2 <- plotScoreHeatmap(singler_results_list$main_monaco)
+hp1 <- plotScoreHeatmap(singler_results_list$main_bencode)
+hp2 <- plotScoreHeatmap(singler_results_list$main_monaco)
 
-#hp3 <- plotScoreHeatmap(singler_results_list$fine_bencode)
-#hp4 <- plotScoreHeatmap(singler_results_list$fine_monaco)
+hp3 <- plotScoreHeatmap(singler_results_list$fine_bencode)
+hp4 <- plotScoreHeatmap(singler_results_list$fine_monaco)
 
-#hp3
-#hp4
+hp3
+hp4
 ```
 
 #### 5. Omit all T cell V genes
