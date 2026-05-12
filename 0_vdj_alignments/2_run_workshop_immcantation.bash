@@ -2,16 +2,16 @@
 
 # Goal: Generate results for 10X MS BCR & TCR data
 #  - there are two BCR and TCR samples
-#  - Immcantation v4.5.0 supports the analysis of these data
+#  - Immcantation v4.7.0 supports the analysis of these data
 
 # Immcantation Documentation:
 # https://immcantation.readthedocs.io/en/stable/
 
 # Install container on your computer:
-# docker pull immcantation/suite:4.5.0
+# docker pull immcantation/suite:4.7.0
 
 # 1. Make sure data exists within container (use 'exit' command to exit container):
-# docker run --name Workshop -it immcantation/suite:4.5.0 bash 
+# docker run --name Workshop -it immcantation/suite:4.7.0 bash 
 
 # Arguments
 # - Input formatted sample name
