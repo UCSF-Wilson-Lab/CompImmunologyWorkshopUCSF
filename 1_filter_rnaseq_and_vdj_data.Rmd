@@ -132,9 +132,13 @@ bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "y
 tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "yes"
 ```
 
+### c. plot showing the overlap
+
 # 4. Plot cell before and after VDJ filter
 
 ### a. SingleR annotations pre and post VDJ filter
+
+- annotations done at the cell level and make use of the raw counts layer
 
 ```{r,fig.height=6,fig.width=14}
 # generate UMAP of cell type annotations pre-filtering
@@ -148,6 +152,8 @@ plot_grid(p1_pre_filter_singler,p2_post_filter_singler,ncol = 2)
 ```
 
 ### b. Azimuth annotations pre and post VDJ filter
+
+- annotations are informed by mapping normalized (SCT) cells onto an atlas which is also SCT normalized
 
 ```{r,fig.height=6,fig.width=14}
 # generate UMAP of cell type annotations pre-filtering
