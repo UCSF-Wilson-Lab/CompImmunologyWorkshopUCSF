@@ -127,8 +127,11 @@ singler_results_list <- readRDS(results_singler_fh)
 
 ## Add celltype annotations back into Seurat Object
 seurat.temp          <- addSingleRcelltypeAnnotToSeuratObject(seurat.temp,singler_results_list)
-annot_meta           <- seurat.temp@meta.data[,c("main_bencode","fine_bencode","main_monaco","fine_monaco")]
-annot_meta           <- annot_meta[row.names(seurat.obj@meta.data),]
+
+idx <- match(rownames(seurat.obj@meta.data), rownames(seurat.temp@meta.data))
+stopifnot(!anyNA(idx))
+
+annot_meta <- seurat.temp@meta.data[idx, c("main_bencode","fine_bencode","main_monaco","fine_monaco"), drop = FALSE]
 seurat.obj@meta.data <- cbind(seurat.obj@meta.data, annot_meta)
 
 rm(seurat.temp)
