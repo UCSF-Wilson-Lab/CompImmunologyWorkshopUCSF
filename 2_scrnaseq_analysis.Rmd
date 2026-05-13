@@ -254,7 +254,7 @@ suppressPackageStartupMessages(library(ggupset))
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
-target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded B memory","Expanded B intermediate","Expanded B naive"),]
+target_genes <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% c("Expanded Plasmablast","Expanded B memory","Expanded B intermediate","Expanded B naive"),]
 
 # Convert gene names to Entrez IDs
 de_genes <- mapIds(org.Hs.eg.db, target_genes$gene, 'ENTREZID', 'SYMBOL')
@@ -296,7 +296,7 @@ de_fc_list <- sort(de_fc_list,decreasing = T)
 edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
 
 ## Network categorySize can be scaled by 'pvalue' or 'geneNum' 
-p1_bcell <- cnetplot(edox, categorySize="pvalue", foldChange=de_fc_list)
+p1_bcell <- cnetplot(edox, foldChange=de_fc_list)
 
 ## Heatmap
 p2_bcell <- heatplot(edox, foldChange=de_fc_list, showCategory=14)
@@ -353,7 +353,7 @@ de_fc_list <- sort(de_fc_list,decreasing = T)
 edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
 
 ## Network categorySize can be scaled by 'pvalue' or 'geneNum' 
-p1_tcell <- cnetplot(edox, categorySize="pvalue", foldChange=de_fc_list)
+p1_tcell <- cnetplot(edox, foldChange=de_fc_list)
 
 ## Heatmap
 p2_tcell <- heatplot(edox, foldChange=de_fc_list, showCategory=20)
