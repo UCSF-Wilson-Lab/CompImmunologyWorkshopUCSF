@@ -8,9 +8,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Prior to running this code:
-* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
-  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
+- Before starting set working directory to the CompImmunologyWorkshopUCSF folder
+  - setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
 ```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
@@ -53,8 +53,8 @@ results_vir_fh <- "data/input_antigen_discovery/results_enriched_peptides_virome
 source("resources/functions_workshop.R")
 ```
 
-
 # Load Processed Objects
+
 ```{r,warning=FALSE}
 load("objects/processed_objects.RData")
 ```
@@ -64,6 +64,7 @@ load("objects/processed_objects.RData")
 # Immune Repertoires
 
 ## --function to format networks
+
 ```{r}
 # formatIgraphNetwork
 #  - format networks for node and edge features so everything is consistent
@@ -103,6 +104,7 @@ formatIgraphNetwork <- function(net,extra.size = TRUE,edge.width = 3) {
 # 1. BCR networks
 
 ### a. Disease patient
+
 ```{r}
 bcr_df$patient <- tstrsplit(bcr_df$sample,"_")[[1]]
 
@@ -116,6 +118,7 @@ bcr_net                 <- formatIgraphNetwork(bcr_net)
 ```
 
 ### b. Healthy patient
+
 ```{r}
 # CSF and PB
 bcr_hc_node_df             <- createRepertoireNodeDataframe(bcr_df,assay = "bcr",select.patients = "32",
@@ -127,20 +130,24 @@ bcr_hc_net                 <- formatIgraphNetwork(bcr_hc_net)
 ```
 
 ### c. Plot
-* Some different layouts:
-  * layout_nicely
-  * layout_components
-  * layout_with_kk
-  * layout_with_lgl
-```{r}
-set.seed(seed.number)
 
-par(mfrow=c(1,2))
-plot(bcr_net,layout = layout_with_kk, main = "BCR - Disease Patient")
-plot(bcr_hc_net,layout = layout_with_kk, main = "BCR - Healthy Patient")
-```
+- Some different layouts:
+
+  - layout_nicely
+  - layout_components
+  - layout_with_kk
+  - layout_with_lgl
+
+  ```{r}
+  set.seed(seed.number)
+
+  par(mfrow=c(1,2))
+  plot(bcr_net,layout = layout_with_kk, main = "BCR - Disease Patient")
+  plot(bcr_hc_net,layout = layout_with_kk, main = "BCR - Healthy Patient")
+  ```
 
 ### d. Write GML file
+
 ```{r}
 bcr_full_node_df             <- createRepertoireNodeDataframe(bcr_df,assay = "bcr",
                                                               select.patients = c("32","28"),
@@ -162,6 +169,7 @@ bcr_graph_all<- graph_from_data_frame(bcr_full_edges, directed=F,vertices=bcr_fu
 T cell networks are a lot larger than B cell networks, therefore we will focus only on clonally expanded cells.
 
 ### a. Disease patient
+
 ```{r}
 tcr_df$patient <- tstrsplit(tcr_df$sample,"_")[[1]]
 tcr_df_exp <- tcr_df[! tcr_df$EXPANSION_CATEGORY %in% "Non-expanded",]
@@ -176,6 +184,7 @@ tcr_net                 <- formatIgraphNetwork(tcr_net,extra.size = F,edge.width
 ```
 
 ### b. Healthy patient
+
 ```{r}
 # CSF and PB
 tcr_hc_node_df             <- createRepertoireNodeDataframe(tcr_df_exp,assay = "tcr",select.patients = "32",
@@ -186,23 +195,26 @@ tcr_hc_net                 <- graph_from_data_frame(d=tcr_hc_edges, vertices=tcr
 tcr_hc_net                 <- formatIgraphNetwork(tcr_hc_net,extra.size = F,edge.width = 1)
 ```
 
-
 ### c. Plot
-* Some different layouts:
-  * layout_nicely
-  * layout_components
-  * layout_with_kk
-  * layout_with_lgl
-  * layout_with_fr
-```{r}
-set.seed(seed.number)
 
-par(mfrow=c(1,2))
-plot(tcr_net,layout = layout_with_fr, main = "TCR - Disease Patient")
-plot(tcr_hc_net,layout = layout_with_fr, main = "TCR - Healthy Patient")
-```
+- Some different layouts:
+
+  - layout_nicely
+  - layout_components
+  - layout_with_kk
+  - layout_with_lgl
+  - layout_with_fr
+
+  ```{r}
+  set.seed(seed.number)
+
+  par(mfrow=c(1,2))
+  plot(tcr_net,layout = layout_with_fr, main = "TCR - Disease Patient")
+  plot(tcr_hc_net,layout = layout_with_fr, main = "TCR - Healthy Patient")
+  ```
 
 ### d. Write GML file
+
 ```{r}
 tcr_exp_node_df             <- createRepertoireNodeDataframe(tcr_df_exp,assay = "tcr",
                                                               select.patients = c("28","32"),
@@ -219,10 +231,10 @@ tcr_graph_exp<- graph_from_data_frame(tcr_exp_edges, directed=F,vertices=tcr_exp
 #write.graph(tcr_graph_exp, file = "4_FindCandidates/tcell_expanded_network.gml", format = "gml")
 ```
 
-
 # 3. TCR networks - CD8 Expanded only
 
 ### a. Disease patient
+
 ```{r}
 tcr_df_exp <- tcr_df[! tcr_df$EXPANSION_CATEGORY %in% "Non-expanded",]
 tcr_df_exp <- tcr_df_exp[tcr_df_exp$SUBTYPE_ANNOTATION %in% "CD8 T cells",]
@@ -237,6 +249,7 @@ tcr_net                 <- formatIgraphNetwork(tcr_net,extra.size = F,edge.width
 ```
 
 ### b. Healthy patient
+
 ```{r}
 # CSF and PB
 tcr_hc_node_df             <- createRepertoireNodeDataframe(tcr_df_exp,assay = "tcr",select.patients = "32",
@@ -247,8 +260,8 @@ tcr_hc_net                 <- graph_from_data_frame(d=tcr_hc_edges, vertices=tcr
 tcr_hc_net                 <- formatIgraphNetwork(tcr_hc_net,extra.size = F,edge.width = 1)
 ```
 
-
 ### c. Plot
+
 ```{r}
 set.seed(seed.number)
 
@@ -257,13 +270,11 @@ plot(tcr_net,layout = layout_with_fr, main = "TCR CD8 - Disease Patient")
 plot(tcr_hc_net,layout = layout_with_fr, main = "TCR CD8 - Healthy Patient")
 ```
 
-
-
 # 4. Dot plot of clonotypes
 
-* Search for Disease Relevant Clonotypes (Thresholds based on prior analysis)
-    * CSF_PB_RATIO_THRESH > 1.5
-    * PB_count <= 1
+- Search for Disease Relevant Clonotypes (Thresholds based on prior analysis)
+  - CSF_PB_RATIO_THRESH \> 1.5
+  - PB_count \<= 1
 
 ```{r}
 clone_counts_tcr_disease <- createCloneCountTable(tcr_df[tcr_df$patient %in% "28",])
@@ -291,7 +302,8 @@ exp_category[! exp_category %in% "CSF_high_expanded"] <- "Other"
 clone_counts_bcr_disease$exp_category <- exp_category
 ```
 
-* Most B cell clonotypes are 1 cell either in the CSF or PB
+- Most B cell clonotypes are 1 cell either in the CSF or PB
+
 ```{r,fig.height=3, fig.width=11,warning=FALSE}
 # fig.width=11 | fig.width=10 for workshop
 
@@ -309,6 +321,7 @@ grid.arrange(p1,p2, nrow = 1)
 # GLIPH2 Network Analysis
 
 ## --function to format networks
+
 ```{r}
 # format TCR GLIPH network
 #  - interactions are based on the GLIPH group, not clone ID
@@ -348,11 +361,10 @@ formatIgraphNetworkGLIPH <- function(net,extra.size = TRUE,edge.width = 3,vertex
 }
 ```
 
-
-
 # 1. Generate input files
-* Running GLIPH2 is optional, results files provided
-* generateGLIPH2inputFiles will create all the input files you need for GLIPH2, but running GLIPH2 still requires a parameter plain text file (made manually)
+
+- Running GLIPH2 is optional, results files provided
+- generateGLIPH2inputFiles will create all the input files you need for GLIPH2, but running GLIPH2 still requires a parameter plain text file (made manually)
 
 ```{r}
 tcr_df_csf         <- tcr_df[tcr_df$COMPARTMENT %in% "CSF",]
@@ -361,13 +373,14 @@ tcr_df_csf$patient <- tstrsplit(tcr_df_csf$sample,"_")[[1]]
 generateGLIPH2inputFiles(tcr_df_csf,results.dir = results_dir_gliph2)
 ```
 
-
 # 2. Run GLIPH2 in the terminal (OPTIONAL)
 
 ### a. Format input parameter file
-* GLIPH2 input files have been provided as part of the workshop
-* Input parameter file: 4_FindCandidates/all_CSF_GLIPH2/param_file_gliph2.cfg
-* Example: parameter file was manually created with the following lines:
+
+- GLIPH2 input files have been provided as part of the workshop
+- Input parameter file: 4_FindCandidates/all_CSF_GLIPH2/param_file_gliph2.cfg
+- Example: parameter file was manually created with the following lines:
+
 ```{r,eval=FALSE}
 out_prefix=AllCSF
 cdr3_file=TCR_input_table.GLIPH2.tsv
@@ -384,21 +397,29 @@ algorithm=GLIPH2
 all_aa_interchangeable=1
 ```
 
-* To inlcude HLA genotypes, create a TSV with all class 1 and 2 alleles (1 row per patient)
-* Example: adding HLA geneotypes in parameter file (param_file_gliph2.cfg):
+- To inlcude HLA genotypes, create a TSV with all class 1 and 2 alleles (1 row per patient)
+- Example: adding HLA geneotypes in parameter file (param_file_gliph2.cfg):
+
 ```{r, eval=FALSE}
 hla_file=HLA_table_formatted_GLIPH.class1and2.tab
 ```
 
 ### b. Run GLIPH2 in terminal (OPTIONAL)
-* Results provided used input patient HLA genotypes
+
+- Results provided used input patient HLA genotypes
+
 ```{r,eval=FALSE}
 cd 4_FindCandidates/all_CSF_GLIPH2
+
+# Linux server
 irtools.centos -c param_file_gliph2.cfg
+
+# Mac OS
+irtools.osx -c param_file_gliph2.cfg
 ```
 
-
 # 3. Load GLIPH2 results for all CSF clones
+
 ```{r}
 gliph_results_fh <- "4_FindCandidates/all_CSF_GLIPH2/AllCSF_cluster.csv"
 gliph_resuls_csf <- read.csv(gliph_results_fh,header = T,stringsAsFactors = F)
@@ -407,6 +428,7 @@ all_groups       <- unique(gliph_resuls_csf$index)
 ```
 
 # 2. Add CSF clonotype frequencies and cell counts to TCR results
+
 ```{r}
 tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_df,clone_counts = clone_counts_tcr,target.col = "pct_CSF",new.col.name = "clonotype_CSF_freq")
 tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,clone_counts = clone_counts_tcr,target.col = "cell_count",new.col.name = "cell_count")
@@ -415,7 +437,8 @@ tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,cl
 
 # 3. Add GLIPH results into TCR table
 
-### a. GLIPH status 
+### a. GLIPH status
+
 ```{r}
 # Add Unified CDR3 Alpha/Beta string to TCR table
 tcr_cdr3_col <- tcr_results_gliph$unique_cell_id
@@ -437,6 +460,7 @@ tcr_results_gliph$gliph_status <- gliph_status_col
 ```
 
 ### b. Add index groups (GLIPH interaction groups)
+
 ```{r}
 target_cells <- tcr_results_gliph[tcr_results_gliph$CDR3ab_AA %in% gliph_resuls_csf$CRD3ab_AA,]
 target_cells <- unique(target_cells$unique_cell_id)
@@ -465,8 +489,8 @@ for (ab in target_cdr3ab) {
 tcr_results_gliph$gliph_group <- index_col
 ```
 
-
 # 4. Filter TCR and GLIPH data based on highly expanded CSF clones
+
 ```{r}
 THRESH <- 0.75  # CSF:PB ratio threshold for TCR
 
@@ -524,6 +548,7 @@ data_tcr_target_all <- data_tcr_target_all[data_tcr_target_all$gliph_status %in%
 # 5. Create TCR network based on GLIPH interaction groups
 
 ### a. create network
+
 ```{r}
 # Create Node dataframe
 tcr_gliph_node_df             <- createRepertoireNodeDataframe(data_tcr_target_all,assay = "tcr",
@@ -559,8 +584,10 @@ tcr_gliph_net           <- formatIgraphNetworkGLIPH(tcr_gliph_net,extra.size = F
 ```
 
 ### b. plot
-* red = healthy patient
-* blue = disease patient
+
+- red = healthy patient
+- blue = disease patient
+
 ```{r}
 set.seed(seed.number)
 
@@ -569,12 +596,12 @@ plot(tcr_gliph_net,layout = layout_with_fr, main = "TCR GLIPH Net - CSF highly e
 
 ### -----------------------------
 
-
 # Format Results for a Query in VDJdb (CSF only)
 
 format CSF TCR results for upload to VDJ db
 
 # 1. Add clonotype frequencies to TCR CSF results
+
 ```{r}
 # Transfer clonotype Freq back to full results
 tcr_results_csf <- tcr_results_gliph[tcr_results_gliph$COMPARTMENT %in% "CSF",]
@@ -596,6 +623,7 @@ tcr_results_csf$CLONE_FREQ  <- clonotype_freq
 ```
 
 # 2. format table to meet VDJdb format
+
 ```{r}
 cols_to_keep  <- c("CLONE_COUNT","CLONE_FREQ","junction","junction_aa","v_call","d_call","j_call")
 fmt_col_names <- c("count","frequency","CDR3nt","CDR3aa","V","D","J")
@@ -613,21 +641,18 @@ fmt_tcr_results$Jstart <- ""
 
 # 3. Output table and upload to VDJdb
 
-VDJdb <https://vdjdb.cdr3.net/>
-1. You will need to create an account or login temporarily.
-2. Once logged in, click on the 'Annotation' tab
-3. Click on the 'Upload' button
-4. Click 'Add' and select the file we are generating bellow 
+VDJdb <https://vdjdb.cdr3.net/> 1. You will need to create an account or login temporarily. 2. Once logged in, click on the 'Annotation' tab 3. Click on the 'Upload' button 4. Click 'Add' and select the file we are generating bellow
+
 ```{r,eval=FALSE}
 write.table(fmt_tcr_results,file = "4_FindCandidates/table_for_VDJdb_CSF.txt",quote = F,row.names = F,sep = "\t")
 ```
-
 
 ### -----------------------------
 
 # Assembling Monoclonals
 
 # 1. BCR - assemble FR and CDRs for clonotypes of interest
+
 ```{r}
 # B cells
 target_bcr <- clone_counts_bcr[clone_counts_bcr$CSF_count >= 2,]
@@ -651,6 +676,7 @@ target_bcr_df_sub <- target_bcr_df[,c("unique_cell_id","locus","v_call","d_call"
 ```
 
 # 2. TCR - assemble FR and CDRs for clonotypes of interest
+
 ```{r}
 # T cells
 target_tcr <- clone_counts_tcr[clone_counts_tcr$CSF_PB_ratio > 1,]
@@ -674,27 +700,6 @@ target_tcr_df$tcr_seq <- str_replace_all(target_tcr_df$tcr_seq,"\\.","")
 target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call","j_call","clone_id","tcr_seq")]
 ```
 
-# 3. Other tools
-
-### --stichr (TCRs only)
-* https://github.com/JamieHeather/stitchr
-* Documentation: https://jamieheather.github.io/stitchr/
-* Only makes used of TCR Beta chains
-* This tool must be used in the terminal to access the GUI
-* Example Entry into GUI (V/J/CDR3 AA of top expanded TCR in the CSF)
-  * Beta Chain
-    * TRBV7-9 
-    * TRBJ1-2 
-    * CASSSNAGAVGYTF
-  * Alpha Chain
-    * TRAV26-1
-    * TRAJ27
-    * CIVRVSYNTNAGKSTF
-```{r, eval=FALSE}
-# Run in terminal locally after installation
-gui_stitchr
-```
-
 
 ### -----------------------------
 
@@ -703,6 +708,7 @@ gui_stitchr
 # 1. Load input dataframes
 
 ### a. load inputs and results
+
 ```{r}
 # autoantigen screen
 df_pep <- read.csv(counts_pep_fh,stringsAsFactors = F,row.names = 1)
@@ -714,6 +720,7 @@ results_vir <- read.csv(results_vir_fh,stringsAsFactors = F)
 ```
 
 ### b. apply log10 to normalized counts
+
 ```{r}
 df_pep_log <- log10(df_pep + 1)
 df_vir_log <- log10(df_vir + 1)
@@ -723,7 +730,8 @@ df_vir_log <- log10(df_vir + 1)
 
 ### a. mAb1 filter for highly enriched peptides
 
-* Use this code for mAb1 and mAb2. To plot the top enriched peptides for mAb2, change **samples_enriched_mAb1** to **samples_enriched_mAb2**.
+- Use this code for mAb1 and mAb2. To plot the top enriched peptides for mAb2, change **samples_enriched_mAb1** to **samples_enriched_mAb2**.
+
 ```{r}
 TOP_PEPTIDES <- 50
 
@@ -742,6 +750,7 @@ top_ordered_genes           <- unique(names(top_pep_mab_peptides))
 ```
 
 ### b. prepare plot dataframe plus cluster rows and columns
+
 ```{r}
 df_plot_pep <- df_pep_log[row.names(df_pep_log) %in% top_pep_mab_peptides,]
 
@@ -772,8 +781,8 @@ for (gene in top_ordered_genes) {
 df_plot_pep <- df_plot_pep[pep_order,]
 ```
 
-
 ### c. setup heatmap parameters
+
 ```{r}
 # Column annotations
 col_annot            <- as.data.frame(names(df_plot_pep))
@@ -795,8 +804,8 @@ break_list <- c(break_1,break_2)
 color_pal  <- bluered(100)
 ```
 
-
 ### d. plot heatmap - top candidate autoantigens
+
 ```{r,fig.height=6, fig.width=6}
 hp_pep <- pheatmap(as.matrix(df_plot_pep),cluster_rows = F,cluster_cols = F,
                 show_rownames = T,show_colnames = T, gaps_col = c(2,4),
@@ -806,10 +815,10 @@ hp_pep <- pheatmap(as.matrix(df_plot_pep),cluster_rows = F,cluster_cols = F,
 hp_pep
 ```
 
-
 # 3. Identify highly enriched viral antigens targeted by mAbs
 
 ### a. mAb1 filter for highly enriched peptides
+
 ```{r}
 # filter for peptides only enriched in one target mAb
 top_hits_vir_mab1 <- results_vir[results_vir$samples_enriched_mAb1 > 0,]
@@ -823,6 +832,7 @@ top_hits_vir_mab1 <- top_hits_vir_mab1[top_hits_vir_mab1$human_virus_status %in%
 ```
 
 ### b. mAb2 filter for highly enriched peptides
+
 ```{r}
 # filter for peptides only enriched in one target mAb
 top_hits_vir_mab2 <- results_vir[results_vir$samples_enriched_mAb2 > 0,]
@@ -835,8 +845,8 @@ top_hits_vir_mab2 <- top_hits_vir_mab2[top_hits_vir_mab2$samples_enriched_mAb2 =
 top_hits_vir_mab2 <- top_hits_vir_mab2[top_hits_vir_mab2$human_virus_status %in% "yes",]
 ```
 
-
 ### c. prepare plot dataframe plus cluster rows and columns
+
 ```{r}
 top_vir_mab_peptides <- unique(c(top_hits_vir_mab1$peptide,top_hits_vir_mab2$peptide))
 
@@ -868,8 +878,8 @@ df_plot_vir <- df_plot_vir[pep_order_vir,]
 metadata_vir <- metadata_vir[pep_order_vir,]
 ```
 
-
 ### d. setup heatmap parameters
+
 ```{r}
 # Column annotations
 col_annot            <- as.data.frame(names(df_plot_vir))
@@ -898,10 +908,10 @@ break_list <- c(break_1,break_2)
 color_pal  <- bluered(100)
 ```
 
-
 ### e. plot heatmap - top candidate viral antigens
 
-* View **metadata_vir** while looking at this heatmap to get more info on each peptide.
+- View **metadata_vir** while looking at this heatmap to get more info on each peptide.
+
 ```{r,fig.height=4, fig.width=12}
 hp_vir <- pheatmap(as.matrix(df_plot_vir),cluster_rows = F,cluster_cols = F,
                 show_rownames = T,show_colnames = T, gaps_col = c(2,4),
@@ -911,6 +921,3 @@ hp_vir <- pheatmap(as.matrix(df_plot_vir),cluster_rows = F,cluster_cols = F,
                 fontsize = 5)
 hp_vir
 ```
-
-
-

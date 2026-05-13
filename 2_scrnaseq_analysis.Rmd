@@ -172,7 +172,7 @@ plot_volcano
 # 4. T cell DGE - Expanded vs Non-Expanded Clones
 
 ### a. run DGE on T cells Expanded vs. Non-expanded (CSF)
-```{r,fig.height=7, fig.width=8,echo=TRUE,warning=FALSE}
+```{r echo=TRUE, fig.height=7, fig.width=8, warning=FALSE}
 TOP_N <- 12
 Idents(tcell_obj_csf) <- tcell_obj_csf$expansion.subtype
 levels(tcell_obj_csf) <- c("Expanded CD8 T cells","Non-expanded CD8 T cells","Expanded CD4 T cells","Non-expanded CD4 T cells")
@@ -249,7 +249,7 @@ suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(ggupset))
 ```
 
-### a. B cells Memory
+### a. Expanded B cells
 ```{r,fig.height=4, fig.width=7,echo=TRUE,warning=FALSE}
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
