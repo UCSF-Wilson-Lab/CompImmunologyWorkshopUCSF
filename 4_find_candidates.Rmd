@@ -150,11 +150,11 @@ bcr_full_edges               <- createRepertoireEdgeDataframe(bcr_full_node_df)
 bcr_full_net                 <- graph_from_data_frame(d=bcr_full_edges, vertices=bcr_full_node_df, directed=F)
 bcr_full_net                 <- formatIgraphNetwork(bcr_full_net)
 
-bcr_graph_all<- graph.data.frame(bcr_full_edges, directed=F,vertices=bcr_full_node_df)
+bcr_graph_all<- graph_from_data_frame(bcr_full_edges, directed=F,vertices=bcr_full_node_df)
 ```
 
 ```{r,eval=FALSE}
-write.graph(bcr_graph_all, file = "4_FindCandidates/bcell_network.gml", format = "gml")
+#write.graph(bcr_graph_all, file = "4_FindCandidates/bcell_network.gml", format = "gml")
 ```
 
 # 2. TCR networks - Expanded only
@@ -212,11 +212,11 @@ tcr_exp_edges               <- createRepertoireEdgeDataframe(tcr_exp_node_df)
 tcr_exp_net                 <- graph_from_data_frame(d=tcr_exp_edges, vertices=tcr_exp_node_df, directed=F)
 tcr_exp_net                 <- formatIgraphNetwork(tcr_exp_net,extra.size = F,edge.width = 1)
 
-tcr_graph_exp<- graph.data.frame(tcr_exp_edges, directed=F,vertices=tcr_exp_node_df)
+tcr_graph_exp<- graph_from_data_frame(tcr_exp_edges, directed=F,vertices=tcr_exp_node_df)
 ```
 
 ```{r,eval=FALSE}
-write.graph(tcr_graph_exp, file = "4_FindCandidates/tcell_expanded_network.gml", format = "gml")
+#write.graph(tcr_graph_exp, file = "4_FindCandidates/tcell_expanded_network.gml", format = "gml")
 ```
 
 
