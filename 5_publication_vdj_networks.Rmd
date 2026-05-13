@@ -1,0 +1,647 @@
+---
+title: "Publication-Quality VDJ Repertoire Networks"
+author: "BMS 270 Computational Immunology Workshop"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+editor_options:
+  markdown:
+    wrap: 78
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo       = TRUE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.align  = "center",
+  dev        = "cairo_pdf"
+)
+```
+
+## Overview
+
+This script takes the BCR / TCR repertoire data already produced by
+**1_filter_rnaseq_and_vdj_data.Rmd** through **4_find_candidates.Rmd** and
+re-renders the network figures at publication quality. The goal is figures
+that could go straight into a high-impact paper without further re-styling.
+
+What this script adds compared to `4_find_candidates.Rmd`:
+
+1.  **ggraph + tidygraph backend.** Networks are drawn through ggplot2's
+    grammar, so layout, color, size, theme and legend all behave like any
+    other ggplot.
+2.  **Colorblind-safe palettes** (Okabe-Ito) used consistently across panels.
+3.  **Multi-panel composition with patchwork.** Each Figure X is a single
+    object you can write to a single PDF.
+4.  **Companion visualizations** that contextualize the networks:
+    - V-J gene-pairing chord diagrams (`circlize`)
+    - Clone-size rank distributions (Zipf-style log-log plots)
+    - Hill diversity profiles (q = 0 → 4) with bootstrap 95% CIs
+5.  **PDF (vector) output at journal column widths** (85 / 115 / 180 mm) using
+    the `cairo_pdf` device, ready for Adobe Illustrator / Inkscape touch-up.
+
+### Prior to running this code
+
+- Set the working directory to the **CompImmunologyWorkshopUCSF** folder:
+  `setwd("[PATH]/CompImmunologyWorkshopUCSF")`
+- This script depends on the same processed objects as `4_find_candidates.Rmd`
+  (i.e. `objects/processed_objects.RData`). It is otherwise self-contained.
+
+### Additional packages required
+
+```{r install_check, eval=FALSE}
+# Run once to make sure the publication-figure stack is installed
+pkgs <- c("tidygraph", "ggraph", "graphlayouts", "patchwork", "circlize",
+          "ggrepel", "ggnewscale", "scales", "ggsci", "tibble", "tidyr")
+to_install <- pkgs[!pkgs %in% rownames(installed.packages())]
+if (length(to_install)) install.packages(to_install, repos = "https://cloud.r-project.org")
+```
+
+```{r libs, message=FALSE, warning=FALSE}
+suppressPackageStartupMessages({
+  # Core data
+  library(dplyr); library(tidyr); library(tibble); library(stringr)
+  library(data.table)
+  # Network / graph stack
+  library(igraph); library(tidygraph); library(ggraph)
+  # Plotting
+  library(ggplot2); library(scales); library(patchwork)
+  library(RColorBrewer); library(ggrepel); library(ggnewscale)
+  # Existing workshop helpers
+  library(impactSingleCellToolkit)
+})
+
+source("resources/functions_workshop.R")
+source("resources/functions_pub_networks.R")
+
+# Reproducibility
+seed.number <- 1234
+set.seed(seed.number)
+
+# Where to write figures
+fig_dir <- "figures"
+dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+# 1. Load processed objects
+
+```{r load_data}
+load("objects/processed_objects.RData")
+
+# Add patient / status columns (mirrors 4_find_candidates.Rmd)
+bcr_df$patient <- tstrsplit(bcr_df$sample, "_")[[1]]
+tcr_df$patient <- tstrsplit(tcr_df$sample, "_")[[1]]
+
+# Friendly labels
+patient_label <- c(`28` = "Disease (P28)", `32` = "Healthy (P32)")
+bcr_df$patient_label <- patient_label[bcr_df$patient]
+tcr_df$patient_label <- patient_label[tcr_df$patient]
+```
+
+### -----------------------------
+
+# 2. BCR repertoire networks (Figure 1)
+
+We build one tidygraph per patient and lay them out side-by-side. Each node is
+a B cell; each cluster of connected nodes is a clonotype. Node size is
+log-scaled to the clone size; fill encodes compartment (CSF vs PB).
+
+The layout is **category-constrained**: each clone is classified as CSF-pure,
+compartment-shared, or PB-pure based on the composition of its member cells,
+and clones are packed into three side-by-side bands accordingly. Within each
+band clones are arranged in a non-overlapping grid; within each clone, cells
+are laid out on a tight circle whose radius scales with √(clone size). The
+result is a network where the spatial story is readable at a glance: "look
+at the left band → those are CSF-restricted clones".
+
+### a. Build nodes / edges / graphs
+
+```{r bcr_graphs}
+# Use the workshop helpers (same as 4_find_candidates.Rmd) so the underlying
+# node/edge structure is identical -- we just re-render it nicely.
+bcr_node_dis <- createRepertoireNodeDataframe(
+  bcr_df, assay = "bcr", select.patients = "28", expansion.thresh = 2
+)
+# id format from the helper is "{barcode}-{patient}_{compartment}", with
+# compartment encoded as PBMC. Normalize to PB to match the rest of the data.
+bcr_node_dis$compartment <- normalize_compartment(tstrsplit(bcr_node_dis$id, "_")[[2]])
+bcr_node_dis$patient     <- "28"
+bcr_edges_dis <- createRepertoireEdgeDataframe(bcr_node_dis)
+g_bcr_dis     <- build_repertoire_tidygraph(bcr_node_dis, bcr_edges_dis)
+
+bcr_node_hc <- createRepertoireNodeDataframe(
+  bcr_df, assay = "bcr", select.patients = "32", expansion.thresh = 2
+)
+bcr_node_hc$compartment <- normalize_compartment(tstrsplit(bcr_node_hc$id, "_")[[2]])
+bcr_node_hc$patient     <- "32"
+bcr_edges_hc <- createRepertoireEdgeDataframe(bcr_node_hc)
+g_bcr_hc     <- build_repertoire_tidygraph(bcr_node_hc, bcr_edges_hc)
+```
+
+### b. Render each panel
+
+```{r bcr_plots, fig.height=6, fig.width=13}
+p_bcr_dis <- plot_repertoire_network(
+  g_bcr_dis,
+  color_by    = "compartment",
+  layout      = "grouped",
+  layout_args = list(node_radius = 0.030, gap_factor = 1.25, aspect = 1.4),
+  edge_alpha  = 0.25,
+  edge_width  = 0.30,
+  size_range  = c(1.4, 5.5),
+  label_top_n = 5,
+  label_col   = "clone_id",
+  band_labels = TRUE,
+  title       = "B cell repertoire — Disease (P28)",
+  subtitle    = "Left band: CSF-restricted   Middle: compartment-shared   Right: PB-restricted",
+  seed        = seed.number
+)
+
+p_bcr_hc <- plot_repertoire_network(
+  g_bcr_hc,
+  color_by    = "compartment",
+  layout      = "grouped",
+  layout_args = list(node_radius = 0.030, gap_factor = 1.25, aspect = 1.4),
+  edge_alpha  = 0.25,
+  edge_width  = 0.30,
+  size_range  = c(1.4, 5.5),
+  label_top_n = 5,
+  label_col   = "clone_id",
+  band_labels = TRUE,
+  title       = "B cell repertoire — Healthy (P32)",
+  subtitle    = "Left band: CSF-restricted   Middle: compartment-shared   Right: PB-restricted",
+  seed        = seed.number
+)
+
+fig_bcr <- compose_panels(list(p_bcr_dis, p_bcr_hc), ncol = 2,
+                          tag_levels = "a")
+fig_bcr
+```
+
+### c. Save vector PDF + 300-DPI PNG
+
+```{r bcr_pdf, eval=FALSE}
+save_pub_figure(fig_bcr,
+                file_basename = file.path(fig_dir, "Fig1_BCR_networks"),
+                width_class   = "double",
+                height_mm     = 130,
+                also_png      = TRUE)
+```
+
+### -----------------------------
+
+# 3. TCR (expanded) repertoire networks (Figure 2)
+
+T cell repertoires are much larger than BCR repertoires, so we restrict to
+expanded clones (cell count \> 1) and split by CD4 vs CD8 in the next panel.
+
+### a. Build graphs
+
+```{r tcr_graphs}
+tcr_df_exp <- tcr_df[! tcr_df$EXPANSION_CATEGORY %in% "Non-expanded", ]
+
+# Disease
+tcr_node_dis <- createRepertoireNodeDataframe(
+  tcr_df_exp, assay = "tcr", select.patients = "28", expansion.thresh = 2
+)
+tcr_node_dis$compartment <- normalize_compartment(tstrsplit(tcr_node_dis$id, "_")[[2]])
+tcr_node_dis$patient     <- "28"
+tcr_edges_dis <- createRepertoireEdgeDataframe(tcr_node_dis)
+g_tcr_dis     <- build_repertoire_tidygraph(tcr_node_dis, tcr_edges_dis)
+
+# Healthy
+tcr_node_hc <- createRepertoireNodeDataframe(
+  tcr_df_exp, assay = "tcr", select.patients = "32", expansion.thresh = 2
+)
+tcr_node_hc$compartment <- normalize_compartment(tstrsplit(tcr_node_hc$id, "_")[[2]])
+tcr_node_hc$patient     <- "32"
+tcr_edges_hc <- createRepertoireEdgeDataframe(tcr_node_hc)
+g_tcr_hc     <- build_repertoire_tidygraph(tcr_node_hc, tcr_edges_hc)
+```
+
+### b. Render
+
+```{r tcr_plots, fig.height=6, fig.width=13}
+p_tcr_dis <- plot_repertoire_network(
+  g_tcr_dis,
+  color_by    = "compartment",
+  layout      = "grouped",
+  layout_args = list(node_radius = 0.020, gap_factor = 1.20, aspect = 1.4),
+  edge_alpha  = 0.18,
+  edge_width  = 0.22,
+  size_range  = c(1.0, 5.0),
+  label_top_n = 4,
+  band_labels = TRUE,
+  title       = "T cell repertoire — Disease (P28)",
+  subtitle    = "Expanded clones only (cell count > 1)",
+  seed        = seed.number
+)
+
+p_tcr_hc <- plot_repertoire_network(
+  g_tcr_hc,
+  color_by    = "compartment",
+  layout      = "grouped",
+  layout_args = list(node_radius = 0.020, gap_factor = 1.20, aspect = 1.4),
+  edge_alpha  = 0.18,
+  edge_width  = 0.22,
+  size_range  = c(1.0, 5.0),
+  label_top_n = 4,
+  band_labels = TRUE,
+  title       = "T cell repertoire — Healthy (P32)",
+  subtitle    = "Expanded clones only (cell count > 1)",
+  seed        = seed.number
+)
+
+fig_tcr <- compose_panels(list(p_tcr_dis, p_tcr_hc), ncol = 2, tag_levels = "a")
+fig_tcr
+```
+
+```{r tcr_pdf, eval=FALSE}
+save_pub_figure(fig_tcr,
+                file_basename = file.path(fig_dir, "Fig2_TCR_networks"),
+                width_class   = "double",
+                height_mm     = 130,
+                also_png      = TRUE)
+```
+
+### -----------------------------
+
+# 4. CD8 T cell networks colored by CDR3 length (Figure 3)
+
+A small but high-information addition: color expanded CD8 clones by mean CDR3
+length, which often tracks antigen-experience and tissue residency.
+
+### a. Build graph with CDR3 metadata
+
+```{r cd8_graph}
+tcr_df_cd8 <- tcr_df_exp[tcr_df_exp$SUBTYPE_ANNOTATION %in% "CD8 T cells", ]
+tcr_df_cd8 <- tcr_df_cd8[tcr_df_cd8$locus %in% "TRB", ]   # beta only for CDR3 length
+
+# Mean beta CDR3 length per clone (one beta per cell after this filter)
+tcr_df_cd8$cdr3_len <- nchar(as.character(tcr_df_cd8$junction_aa))
+clone_cdr3_len <- tapply(tcr_df_cd8$cdr3_len, tcr_df_cd8$clone_id,
+                         function(x) mean(x, na.rm = TRUE))
+
+# Per-cell patient lookup so we don't depend on id-parsing
+cell_patient <- setNames(tcr_df_cd8$patient, tcr_df_cd8$unique_cell_id)
+cell_patient <- cell_patient[!duplicated(names(cell_patient))]
+
+cd8_node <- createRepertoireNodeDataframe(
+  tcr_df_cd8, assay = "tcr", select.patients = c("28", "32"),
+  expansion.thresh = 2
+)
+cd8_node$compartment   <- normalize_compartment(tstrsplit(cd8_node$id, "_")[[2]])
+cd8_node$patient       <- unname(cell_patient[cd8_node$id])
+cd8_node$mean_cdr3_len <- as.numeric(clone_cdr3_len[as.character(cd8_node$clone_id)])
+
+cd8_edges <- createRepertoireEdgeDataframe(cd8_node)
+g_cd8     <- build_repertoire_tidygraph(cd8_node, cd8_edges)
+```
+
+
+### -----------------------------
+
+# 5. GLIPH motif network (Figure 4)
+
+GLIPH2 groups TCRs by shared CDR3 motifs that putatively bind the same
+antigen. Here we re-render the GLIPH network with proper labels on the motif
+hubs, colored by patient, sized by clone size.
+
+### a. Re-run the same filtering as `4_find_candidates.Rmd`
+
+```{r gliph_filter}
+gliph_results_fh <- "4_FindCandidates/all_CSF_GLIPH2/AllCSF_cluster.csv"
+gliph_resuls_csf <- read.csv(gliph_results_fh, header = TRUE, stringsAsFactors = FALSE)
+gliph_resuls_csf$CRD3ab_AA <- paste(gliph_resuls_csf$TcRa, gliph_resuls_csf$TcRb, sep = ":")
+
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_df,
+                                                   clone_counts = clone_counts_tcr,
+                                                   target.col = "pct_CSF",
+                                                   new.col.name = "clonotype_CSF_freq")
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,
+                                                   clone_counts = clone_counts_tcr,
+                                                   target.col = "cell_count",
+                                                   new.col.name = "cell_count")
+tcr_results_gliph <- addCloneCountColToVDJresults(results = tcr_results_gliph,
+                                                   clone_counts = clone_counts_tcr,
+                                                   target.col = "CSF_count",
+                                                   new.col.name = "CSF_count")
+
+# Build CDR3ab_AA per cell
+tcr_cdr3_col <- tcr_results_gliph$unique_cell_id
+for (cell in unique(tcr_results_gliph$unique_cell_id)) {
+  cell_df <- tcr_results_gliph[tcr_results_gliph$unique_cell_id %in% cell, ]
+  alpha   <- cell_df[cell_df$locus %in% "TRA", ]
+  beta    <- cell_df[cell_df$locus %in% "TRB", ]
+  ab      <- paste(c(alpha$junction_aa, beta$junction_aa), collapse = ":")
+  tcr_cdr3_col[tcr_cdr3_col %in% cell] <- ab
+}
+tcr_results_gliph$CDR3ab_AA <- tcr_cdr3_col
+
+# GLIPH membership flag
+gliph_status_col <- tcr_results_gliph$CDR3ab_AA
+gliph_status_col[gliph_status_col %in% unique(gliph_resuls_csf$CRD3ab_AA)] <- "1"
+gliph_status_col[! gliph_status_col %in% "1"] <- "0"
+tcr_results_gliph$gliph_status <- gliph_status_col
+
+# Index group string per cell
+target_cells <- tcr_results_gliph[tcr_results_gliph$CDR3ab_AA %in% gliph_resuls_csf$CRD3ab_AA, ]
+target_cells <- unique(target_cells$unique_cell_id)
+
+index_col        <- tcr_results_gliph$CDR3ab_AA
+names(index_col) <- tcr_results_gliph$unique_cell_id
+index_col[! names(index_col) %in% target_cells] <- ""
+target_cdr3ab <- unique(as.character(index_col[! index_col %in% ""]))
+for (ab in target_cdr3ab) {
+  gliph_sub <- gliph_resuls_csf[gliph_resuls_csf$CRD3ab_AA %in% ab, ]
+  if (nrow(gliph_sub) > 0) {
+    index_vec <- unique(gliph_sub$index)
+    if (length(index_vec) > 1) {
+      index_col[index_col %in% ab] <- paste(sort(index_vec), collapse = ":")
+    } else {
+      index_col[index_col %in% ab] <- index_vec
+    }
+  }
+}
+tcr_results_gliph$gliph_group <- index_col
+
+# Subset to expanded, GLIPH-positive CSF clones (mirrors 4_find_candidates.Rmd)
+THRESH <- 0.75
+clonotype_counts_csf     <- clone_counts_tcr[clone_counts_tcr$CSF_count > 1, ]
+clonotype_counts_csf_exp <- clonotype_counts_csf[clonotype_counts_csf$cell_count > 1, ]
+high_csf_clones <- clonotype_counts_csf_exp[clonotype_counts_csf_exp$CSF_PB_ratio > THRESH, ]
+target_clones   <- row.names(high_csf_clones)
+
+data_tcr_na     <- tcr_results_gliph[is.na(tcr_results_gliph$junction_aa), ]
+incomplete_tcrs <- unique(data_tcr_na$unique_cell_id)
+data_tcr_clean  <- tcr_results_gliph[! tcr_results_gliph$unique_cell_id %in% incomplete_tcrs, ]
+
+data_tcr_csf     <- data_tcr_clean[data_tcr_clean$COMPARTMENT %in% "CSF", ]
+data_tcr_csf_exp <- data_tcr_csf[data_tcr_csf$clone_id %in% row.names(clonotype_counts_csf_exp), ]
+data_tcr_csf_exp <- data_tcr_csf_exp[data_tcr_csf_exp$gliph_status %in% "1", ]
+data_tcr_target  <- data_tcr_csf_exp[data_tcr_csf_exp$clone_id %in% target_clones, ]
+
+target_groups <- unique(data_tcr_target$gliph_group)
+target_groups_all <- unique(unlist(strsplit(target_groups, ":")))
+target_groups_all <- c(target_groups_all, target_groups)
+target_groups_all <- unique(target_groups_all)
+
+interac_tcr <- unique(data_tcr_csf[data_tcr_csf$gliph_group %in% target_groups_all,
+                                    "unique_cell_id"])
+
+all_target_cells     <- c(unique(data_tcr_target$unique_cell_id), interac_tcr)
+data_tcr_target_all  <- data_tcr_clean[data_tcr_clean$unique_cell_id %in% all_target_cells, ]
+data_tcr_target_all  <- data_tcr_target_all[data_tcr_target_all$gliph_status %in% "1", ]
+```
+
+### b. Build GLIPH-grouped node / edge / graph
+
+```{r gliph_graph}
+gliph_node <- createRepertoireNodeDataframe(
+  data_tcr_target_all, assay = "tcr",
+  clone.col       = "gliph_group",
+  prefix.clone.id = "gliph",
+  expansion.thresh = 2
+)
+row.names(gliph_node) <- gliph_node$id
+
+# Add patient and clone-id metadata to nodes (one row per cell)
+extra_df <- data_tcr_target_all[data_tcr_target_all$locus %in% "TRB", ]
+extra_df <- extra_df[!duplicated(extra_df$unique_cell_id), ]
+row.names(extra_df) <- extra_df$unique_cell_id
+extra_df <- extra_df[, c("clone_id", "patient", "COMPARTMENT")]
+names(extra_df)[1] <- "clone_id_vdj"
+
+gliph_node <- merge(gliph_node, extra_df, by = 0, all.x = TRUE)
+gliph_node[, 1] <- NULL
+row.names(gliph_node) <- gliph_node$id
+
+# Compact motif label: one label per GLIPH group, on the largest node
+net_label_col <- gliph_node$clone_id
+for (grp in unique(net_label_col)) {
+  idx <- which(net_label_col %in% grp)
+  # keep the label on the first row (one motif label per cluster is enough)
+  if (length(idx) > 1) net_label_col[idx[-1]] <- ""
+}
+gliph_node$net_node_label <- net_label_col
+
+gliph_edges <- createRepertoireEdgeDataframe(gliph_node)
+g_gliph     <- build_repertoire_tidygraph(gliph_node, gliph_edges)
+```
+
+### c. Render — labels on motif hubs, grouped layout by patient
+
+For the GLIPH network the meaningful spatial axis is *patient identity*
+rather than compartment, since GLIPH groups are by definition CSF-only here.
+We use `compartment_col = "patient"` so the same grouped-layout machinery
+puts P28-only clones on one side, shared clones in the middle, and P32-only
+clones on the other side.
+
+```{r gliph_plot, fig.height=7, fig.width=10}
+set.seed(seed.number)
+
+p_gliph <- plot_repertoire_network(
+  g_gliph,
+  color_by    = "patient",
+  color_pal   = pub_palettes$patient,
+  layout      = "grouped",
+  layout_args = list(compartment_col = "patient",
+                     csf_label       = "28",
+                     pb_label        = "32",
+                     node_radius     = 0.025,
+                     gap_factor      = 1.25,
+                     aspect          = 1.4),
+  edge_alpha  = 0.45,
+  edge_width  = 0.30,
+  size_range  = c(1.2, 6.5),
+  label_top_n = 10,
+  label_col   = "net_node_label",
+  band_labels = FALSE,
+  title       = "GLIPH2 motif network — highly expanded CSF clones",
+  subtitle    = "Disease-only clones (left)   Shared motif groups (centre)   Healthy-only clones (right)",
+  seed        = seed.number
+)
+p_gliph
+```
+
+```{r gliph_pdf, eval=FALSE}
+save_pub_figure(p_gliph,
+                file_basename = file.path(fig_dir, "Fig4_GLIPH_motif_network"),
+                width_class   = "double",
+                height_mm     = 120,
+                also_png      = TRUE)
+```
+
+### -----------------------------
+
+# 6. V-J gene pairing chord diagrams (Figure 5)
+
+A chord diagram shows which V genes pair with which J genes at what frequency,
+making compartment- or status-specific biases visually obvious. We render one
+per (cell type, compartment) cell.
+
+### a. TCR beta V-J pairing — Disease CSF vs PB
+
+```{r vj_tcr_chord, fig.height=4, fig.width=8}
+tcr_beta <- tcr_df[tcr_df$locus %in% "TRB" & tcr_df$patient %in% "28", ]
+tcr_beta_csf <- tcr_beta[tcr_beta$COMPARTMENT %in% "CSF", ]
+tcr_beta_pb  <- tcr_beta[tcr_beta$COMPARTMENT %in% "PB",  ]
+
+par(mfrow = c(1, 2))
+plot_vj_chord(tcr_beta_csf, top_v = 12, top_j = 8,
+              v_color = pub_palettes$compartment[["CSF"]],
+              j_color = pub_palettes$compartment[["PB"]],
+              title = "Disease CSF TCR-β V-J pairing")
+plot_vj_chord(tcr_beta_pb,  top_v = 12, top_j = 8,
+              v_color = pub_palettes$compartment[["CSF"]],
+              j_color = pub_palettes$compartment[["PB"]],
+              title = "Disease PB  TCR-β V-J pairing")
+par(mfrow = c(1, 1))
+```
+
+### b. Save vector PDFs
+
+```{r vj_chord_pdf, eval=FALSE}
+plot_vj_chord(tcr_beta_csf, top_v = 12, top_j = 8,
+              pdf_out = file.path(fig_dir, "Fig5a_VJ_TRB_CSF.pdf"),
+              title = "Disease CSF TCR-β V-J pairing")
+plot_vj_chord(tcr_beta_pb,  top_v = 12, top_j = 8,
+              pdf_out = file.path(fig_dir, "Fig5b_VJ_TRB_PB.pdf"),
+              title = "Disease PB  TCR-β V-J pairing")
+```
+
+### c. BCR heavy-chain V-J pairing
+
+```{r vj_bcr_chord, fig.height=4, fig.width=8}
+bcr_heavy_dis <- bcr_df[bcr_df$locus %in% "IGH" & bcr_df$patient %in% "28", ]
+
+par(mfrow = c(1, 2))
+plot_vj_chord(bcr_heavy_dis[bcr_heavy_dis$COMPARTMENT %in% "CSF", ],
+              top_v = 15, top_j = 6, title = "Disease CSF IGH V-J pairing")
+plot_vj_chord(bcr_heavy_dis[bcr_heavy_dis$COMPARTMENT %in% "PB", ],
+              top_v = 15, top_j = 6, title = "Disease PB  IGH V-J pairing")
+par(mfrow = c(1, 1))
+```
+
+### -----------------------------
+
+# 7. Clone-size rank distribution (Figure 6)
+
+A Zipf-style log-log plot of clone rank vs clone size. A straight line of
+slope ≈ -1 signals a power-law repertoire (typical of antigen-experienced T
+cells). The disease CSF should sit visibly higher and flatter than healthy.
+
+### a. Per-compartment, per-patient
+
+```{r rank_curves, fig.height=4, fig.width=10}
+# Build a per-(patient × compartment) long table of clone sizes. Each row is
+# one clone within a (patient, compartment) group; the cell_count column is
+# the number of distinct cells supporting that clone in that group.
+clone_counts_long <- tcr_df %>%
+  dplyr::distinct(unique_cell_id, clone_id, patient, COMPARTMENT) %>%
+  dplyr::group_by(patient, COMPARTMENT, clone_id) %>%
+  dplyr::summarize(cell_count = dplyr::n_distinct(unique_cell_id),
+                   .groups = "drop") %>%
+  dplyr::mutate(group = paste(patient, COMPARTMENT, sep = "_"))
+
+# Color: blue family = disease, orange family = healthy
+group_pal <- c(`28_CSF` = "#08306B", `28_PB` = "#6BAED6",
+               `32_CSF` = "#7F2704", `32_PB` = "#FDAE6B")
+
+p_rank <- plot_clone_rank(
+  clone_count_df = clone_counts_long,
+  group_col      = "group",
+  count_col      = "cell_count",
+  color_pal      = group_pal,
+  min_count      = 1,
+  title          = "TCR clone-size rank distribution",
+  subtitle       = "Zipf-style log-log; disease CSF clones flatter & higher than PB"
+)
+p_rank
+```
+
+```{r rank_pdf, eval=FALSE}
+save_pub_figure(p_rank,
+                file_basename = file.path(fig_dir, "Fig6_TCR_rank_distribution"),
+                width_class   = "1.5", height_mm = 80, also_png = TRUE)
+```
+
+### -----------------------------
+
+# 8. Hill diversity profiles (Figure 7)
+
+Hill numbers (q-D) interpolate smoothly from clone richness (q=0) through
+Shannon (q=1) to Simpson (q=2) and beyond. A diversity profile is the most
+informative single-panel summary of repertoire structure, and is preferred
+over a single index in current immunology papers.
+
+```{r hill, fig.height=4, fig.width=10}
+# Build a per-(patient × compartment) group column in tcr_df / bcr_df
+tcr_df$group <- paste(tcr_df$patient, tcr_df$COMPARTMENT, sep = "_")
+bcr_df$group <- paste(bcr_df$patient, bcr_df$COMPARTMENT, sep = "_")
+
+p_hill_tcr <- plot_hill_diversity(
+  tcr_df[tcr_df$locus %in% "TRB", ],
+  group_col = "group", color_pal = group_pal,
+  nboot     = 100,
+  title     = "TCR-β Hill diversity",
+  subtitle  = "Bootstrap 95% CI; q=0 richness → q=4 dominance"
+)
+
+p_hill_bcr <- plot_hill_diversity(
+  bcr_df[bcr_df$locus %in% "IGH", ],
+  group_col = "group", color_pal = group_pal,
+  nboot     = 100,
+  title     = "BCR-heavy Hill diversity",
+  subtitle  = "Bootstrap 95% CI; q=0 richness → q=4 dominance"
+)
+
+fig_hill <- (p_hill_tcr | p_hill_bcr) +
+  plot_annotation(tag_levels = "a") +
+  plot_layout(guides = "collect")
+fig_hill
+```
+
+```{r hill_pdf, eval=FALSE}
+save_pub_figure(fig_hill,
+                file_basename = file.path(fig_dir, "Fig7_Hill_diversity"),
+                width_class   = "double", height_mm = 85, also_png = TRUE)
+```
+
+### -----------------------------
+
+# 9. Master multi-panel figure (Figure 8 — main figure candidate)
+
+A single master figure combining the disease network, the GLIPH motif network,
+the rank distribution and the Hill profile. This is the kind of composite
+figure that would land as Figure 2 or 3 of an immunology paper.
+
+```{r master, fig.height=11, fig.width=14}
+fig_master <- (
+  (p_bcr_dis | p_tcr_dis) /
+  (p_gliph   | p_rank)    /
+  (p_hill_tcr | p_hill_bcr)
+) +
+  plot_annotation(tag_levels = "a",
+                  title    = "Multi-modal repertoire analysis — disease vs healthy CSF",
+                  subtitle = "BCR networks, GLIPH motifs, Zipf rank, Hill diversity") &
+  theme(plot.tag = element_text(face = "bold", size = 13))
+fig_master
+```
+
+```{r master_pdf, eval=FALSE}
+save_pub_figure(fig_master,
+                file_basename = file.path(fig_dir, "Fig8_master_repertoire"),
+                width_class   = "double", height_mm = 240, also_png = TRUE)
+```
+
+### -----------------------------
+
+# 10. Session info
+
+```{r session_info}
+sessionInfo()
+```

@@ -502,7 +502,7 @@ plot_grid(p12,p13,nrow=2,align = "v")
 
 - Expanded T cell populations are observed in all compartments, while expanded B cells show more restriction
 
-```{r,fig.height=6, fig.width=7,warning=FALSE}
+```{r fig.height=6, fig.width=7, warning=FALSE}
 p14 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
 p15 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
 

@@ -14,7 +14,9 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
   │   ├── 1_filter_rnaseq_and_vdj_data.Rmd
   │   ├── 2_scrnaseq_analysis.Rmd
   │   ├── 3_repertoire_analysis.Rmd
-  │   └── 4_find_candidates.Rmd
+  │   ├── 3b_bonus_repertoire_exercises.Rmd   (NEW — extra exercises)
+  │   ├── 4_find_candidates.Rmd
+  │   └── 5_publication_vdj_networks.Rmd      (NEW — publication-quality figures)
   │
   ├── 4_FindCandidates
   │   └── all_CSF_GLIPH2
@@ -22,9 +24,30 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
   │   ├── input_immcantation
   │   ├── results_immcantation
   │   └── input_antigen_discovery
+  ├── figures                                  (created by script 5)
   ├── objects
   └── resources
+      ├── functions_workshop.R
+      └── functions_pub_networks.R             (NEW — ggraph/circlize helpers)
 ```
+
+### New material (2026 refresh)
+
+* **`3b_bonus_repertoire_exercises.Rmd`** — seven additional exercises that
+  extend `3_repertoire_analysis.Rmd`: CDR3 physicochemical properties
+  (hydrophobicity, charge), public-vs-private clonotypes, compartment overlap
+  with Morisita-Horn and Jaccard indices, V-gene-stratified spectratypes, a
+  clone-level CSF-enrichment volcano, BCR isotype-switching summary, and
+  expanded-vs-unexpanded gene-module scoring (effector, exhaustion, Trm).
+* **`5_publication_vdj_networks.Rmd`** — rebuilds the BCR/TCR/GLIPH networks
+  using `tidygraph` + `ggraph` with a colorblind-safe Okabe-Ito palette,
+  proper legends, multi-panel composition via `patchwork`, V-J pairing chord
+  diagrams (`circlize`), Zipf-style clone-size rank distributions, and Hill
+  diversity profiles with bootstrap 95% CIs. All figures save as vector PDFs
+  at journal column widths (85 / 115 / 180 mm) via `cairo_pdf`.
+* **`resources/functions_pub_networks.R`** — shared helpers (palettes,
+  themes, `build_repertoire_tidygraph`, `plot_repertoire_network`,
+  `plot_vj_chord`, `plot_clone_rank`, `plot_hill_diversity`, `save_pub_figure`).
 
 ## Dependencies
 
@@ -49,6 +72,8 @@ install.packages(c("Seurat",
 install.packages(c("devtools",
                    "knitr",
                    "dplyr",
+                   "tidyr",
+                   "tibble",
                    "stringr",
                    "reshape2",
                    "gplots",
@@ -62,6 +87,17 @@ install.packages(c("devtools",
                    "ggpubr",
                    "enrichplot",
                    "ggnewscale"),
+                   repos="https://cloud.r-project.org")
+
+# Additional packages for the publication-quality figures (scripts 3b and 5)
+install.packages(c("tidygraph",
+                   "ggraph",
+                   "graphlayouts",
+                   "patchwork",
+                   "circlize",
+                   "ggrepel",
+                   "scales",
+                   "ggsci"),
                    repos="https://cloud.r-project.org")
 ```
 
