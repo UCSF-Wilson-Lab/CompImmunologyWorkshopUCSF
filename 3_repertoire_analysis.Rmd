@@ -1,6 +1,9 @@
 ---
 title: "Immune Repertoire Analysis"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -8,8 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Prior to running this code:
-* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
-  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+
+- Before starting set working directory to the
+  CompImmunologyWorkshopUCSF folder
+  - setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
 ```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
@@ -49,10 +54,10 @@ seed.number <- 123456
 source("resources/functions_workshop.R")
 ```
 
-
 # Load Processed Objects
 
 # 1. load processed dataframes and objects
+
 ```{r}
 load(processed_objects_fh)
 
@@ -77,7 +82,8 @@ tcr_df$chain <- tcr_df$locus
 bcr_results_igh <- bcr_df[bcr_df$locus %in% "IGH",]
 ```
 
-# 2. input BCR - scRepertoire 
+# 2. input BCR - scRepertoire
+
 ```{r}
 input_bcr_df <- read.csv(input_bcr_fh,stringsAsFactors = F)
 
@@ -99,8 +105,8 @@ bcell_screp <- combineBCR(bcr.list,
                         samples = uni_samples)
 ```
 
-
 # 3. input TCR - scRepertoire
+
 ```{r}
 # Load one contig file
 input_tcr_df <- read.csv(input_tcr_fh,stringsAsFactors = F)
@@ -127,17 +133,27 @@ tcell_screp <- combineTCR(tcr.list,
 
 # scRepertoire Analysis
 
-* Overall this tools seems very good very quick and preliminary exploration of repertoire data. In particular, the way clones are defined benefits TCR repertoire analysis more than BCR. 
+- Overall this tools seems very good very quick and preliminary
+  exploration of repertoire data. In particular, the way clones are
+  defined benefits TCR repertoire analysis more than BCR.
 
 # 1. Quantify Clones
-* CSF BCR has a higher percentage of unique clonotypes relative to PBMC when using 'strict' criteria
-* When the scale is set to FALSE, it is shown there are more total unique clonotypes in PBMC
-* Clone counts change depending on what criteria you use
-* Criteria used to define clonally related cells:
-  * strict = cells with the same V/D/J/C + CDR3 nucleotide sequence
-  * gene   = cells with the same V/D/J/C
-  * nt     = CDR3 nucleotide sequence
-  * aa     = CDR3 AA sequence
+
+- CSF BCR has a higher percentage of unique clonotypes relative to PBMC
+  when using 'strict' criteria
+
+- When the scale is set to FALSE, it is shown there are more total
+  unique clonotypes in PBMC
+
+- Clone counts change depending on what criteria you use
+
+- Criteria used to define clonally related cells:
+
+  - strict = cells with the same V/D/J/C + CDR3 nucleotide sequence
+  - gene = cells with the same V/D/J/C
+  - nt = CDR3 nucleotide sequence
+  - aa = CDR3 AA sequence
+
 ```{r,fig.height=3,fig.width=9}
 # fig.width=9 | fig.width=9 for workshop
 p_scr1 <- clonalQuant(bcell_screp, 
@@ -156,6 +172,7 @@ plot_grid(p_scr1,p_scr2,ncol = 2)
 # 2. Clonotype Proportions
 
 ### a. relative abundance
+
 ```{r,fig.height=4,fig.width=12}
 # fig.height=4,fig.width=12 |fig.height=3,fig.width=10 for workshop
 p_scr3 <- clonalHomeostasis(bcell_screp, cloneCall = "aa",chain = "IGH")
@@ -164,10 +181,14 @@ p_scr4 <- clonalHomeostasis(tcell_screp, cloneCall = "aa",chain = "both")
 plot_grid(p_scr3,p_scr4,ncol = 2)
 ```
 
-### b. proportion 
-* clonotypes are sorted by abundance and binned in decending order from most abundance clonotypes ([1:10]) to the least
-* changing to 'aa' cloneCall criteria leads to more total B cell clonotypes in PBMC
-* B cell repertoire contains fewer total clonotypes compared to T cells
+### b. proportion
+
+- clonotypes are sorted by abundance and binned in decending order from
+  most abundance clonotypes ([1:10]) to the least
+- changing to 'aa' cloneCall criteria leads to more total B cell
+  clonotypes in PBMC
+- B cell repertoire contains fewer total clonotypes compared to T cells
+
 ```{r,fig.height=3,fig.width=12}
 # fig.width=12 | fig.width=6 for workshop
 p_scr5 <- clonalProportion(bcell_screp, chain = "IGH",cloneCall = "strict") 
@@ -176,39 +197,41 @@ p_scr6 <- clonalProportion(tcell_screp, chain = "both",cloneCall = "strict")
 plot_grid(p_scr5,p_scr6,ncol = 2)
 ```
 
+# 3. Gene usage (change)
 
-# *3. Gene usage (change)
-* test different combinations
-* gene = V, J, D, C
-* plot = barplot, heatmap
+- test different combinations
+- gene = V, J, D, C
+- plot = barplot, heatmap
 
 ### a. BCR gene usage
-* CSF contains more restricted gene expression especially for V genes
+
+- CSF contains more restricted gene expression especially for V genes
 
 ```{r}
 vizGenes(bcell_screp,
          x.axis = "IGHV",
          y.axis = NULL, 
-         plot = "heatmap", 
-         scale = TRUE)
+         plot = "heatmap")
 ```
 
 ### b. TCR gene usage
 
-* No **both** option for chain
+- No **both** option for chain
+
 ```{r}
 vizGenes(tcell_screp, 
          x.axis = "TRBV", 
          y.axis = NULL,
-         plot = "barplot", 
-         scale = TRUE)
+         plot = "barplot")
 ```
 
 # 3. CDR3 Lengths and Kmers
-* Overall lengths are larger in TCRs
-* CSF CDR3 AA lengths are extra short in the B cell repertoire
+
+- Overall lengths are larger in TCRs
+- CSF CDR3 AA lengths are extra short in the B cell repertoire
 
 ### a. Lengths
+
 ```{r,fig.height=3,fig.width=9}
 p_scr5 <- clonalLength(bcell_screp, 
              cloneCall="aa", 
@@ -222,28 +245,32 @@ plot_grid(p_scr5,p_scr6,ncol = 2)
 ```
 
 ### b. Kmers
+
 ```{r,fig.height=5,fig.width=9}
 p_scr5_kmer <- percentKmer(bcell_screp, 
                            cloneCall = "aa",
                            chain = "IGH", 
-                           motif.length = 3, 
+                           motif.length = 5, 
                            top.motifs = 25)
 
 p_scr6_kmer <- percentKmer(tcell_screp, 
                            cloneCall = "aa",
                            chain = "TRB", 
-                           motif.length = 3, 
+                           motif.length = 5, 
                            top.motifs = 25)
 
 plot_grid(p_scr5_kmer,p_scr6_kmer,ncol = 2)
 ```
 
-
 # 4. Shared clonotypes
-* **numbers** is the number of top clones to evaluate for each group (patient CSF/PBMC)
-* The TCR repertoire will contain many shared clones within a patient, so we will focus on the top 10 largest clones
+
+- **numbers** is the number of top clones to evaluate for each group
+  (patient CSF/PBMC)
+- The TCR repertoire will contain many shared clones within a patient,
+  so we will focus on the top 10 largest clones
 
 ### a. TCR shared clones
+
 ```{r,fig.height=7,fig.width=15}
 # Disease Patient
 p_scr7 <- clonalCompare(tcell_screp, 
@@ -264,11 +291,18 @@ plot_grid(p_scr7,p_scr8)
 ```
 
 ### b. BCR shared clonotypes
-* Ig Clonotypes do not overlap between compartments across the most abundant clonotypes
-* 'aa' criteria B cell clonotypes are strict and doesn't account for somatic hypermutation
-* When defining clonotypes based on VDJ and CDR3 nucleotide sequences, more overlaps appear
-* Since the CSF repertoire is smaller, when we set numbers = NULL, we can still visualize all the shared clonotype connections
-* The Disease patient contains more shared clonotypes between PBMC and CSF
+
+- Ig Clonotypes do not overlap between compartments across the most
+  abundant clonotypes
+- 'aa' criteria B cell clonotypes are strict and doesn't account for
+  somatic hypermutation
+- When defining clonotypes based on VDJ and CDR3 nucleotide sequences,
+  more overlaps appear
+- Since the CSF repertoire is smaller, when we set numbers = NULL, we
+  can still visualize all the shared clonotype connections
+- The Disease patient contains more shared clonotypes between PBMC and
+  CSF
+
 ```{r,fig.height=5,fig.width=15}
 # Disease Patient
 p_scr9 <- clonalCompare(bcell_screp, 
@@ -288,9 +322,13 @@ p_scr10 <- clonalCompare(bcell_screp,
 plot_grid(p_scr9,p_scr10)
 ```
 
-# 5. Shared clonotype scatter plots - TCR 
-* Disease patient has an increased number of TCR clones that are PBMC or CSF exclusive
-* Healthy patient has more clones that are a even mixture between PBMC and CSF
+# 5. Shared clonotype scatter plots - TCR
+
+- Disease patient has an increased number of TCR clones that are PBMC or
+  CSF exclusive
+- Healthy patient has more clones that are a even mixture between PBMC
+  and CSF
+
 ```{r,fig.height=4,fig.width=11}
 # fig.width=11 | fig.width=10 for workshop
 p_scr11 <- clonalScatter(tcell_screp, cloneCall ="aa", 
@@ -309,10 +347,13 @@ plot_grid(p_scr11,p_scr12,ncol = 2)
 ```
 
 # 6. Shared clonotypes - proportions
-* Proportion of shared clonotypes changes based on the method
-  * aa (no overlaps in BCR clonotypes)
-  * gene
-  * strict
+
+- Proportion of shared clonotypes changes based on the method
+
+  - aa (no overlaps in BCR clonotypes)
+  - gene
+  - strict
+
 ```{r,fig.height=3,fig.width=9,warning=FALSE}
 method  <- "strict"
 p_scr13 <- clonalOverlap(bcell_screp, cloneCall=method,chain = "IGH", method="overlap")
@@ -324,14 +365,18 @@ plot_grid(p_scr13,p_scr14,ncol = 2)
 
 # 7. Clonal diversity measures
 
-https://en.wikipedia.org/wiki/Diversity_index
-https://evolution.unibas.ch/walser/bacteria_community_analysis/2015-02-10_MBM_tutorial_combined.pdf
+<https://en.wikipedia.org/wiki/Diversity_index>
+<https://evolution.unibas.ch/walser/bacteria_community_analysis/2015-02-10_MBM_tutorial_combined.pdf>
 
-* Richness - index emphasizing the number of different types of clonotypes
-* Shannon - index that is a form species richness where rare OTU's play more of an influence
-* Inv. Simpson - index emphasizes species dominance where proportional abundance among clonotype groups are averaged
+- Richness - index emphasizing the number of different types of
+  clonotypes
+- Shannon - index that is a form species richness where rare OTU's play
+  more of an influence
+- Inv. Simpson - index emphasizes species dominance where proportional
+  abundance among clonotype groups are averaged
 
-### a. BCR 
+### a. BCR
+
 ```{r}
 # BCR
 clonalDiversity(bcell_screp, 
@@ -341,7 +386,8 @@ clonalDiversity(bcell_screp,
                 n.boots = 100)
 ```
 
-### a. TCR 
+### a. TCR
+
 ```{r}
 # TCR
 clonalDiversity(tcell_screp, 
@@ -351,20 +397,20 @@ clonalDiversity(tcell_screp,
                 n.boots = 100)
 ```
 
-
-
-
 ### -----------------------------
 
 # Immcantation Post Analysis
 
-https://bitbucket.org/kleinstein/immcantation/src/master/training/10x_tutorial.md
+<https://bitbucket.org/kleinstein/immcantation/src/master/training/10x_tutorial.md>
 
 # 1. CDR3 AA Hamming Distances across BCR data
-* These samples were part of a larger study
-* An automated threshold (using the GMM method) of 0.15 was outputted for the full cohort and was also used for this subset of samples 
+
+- These samples were part of a larger study
+- An automated threshold (using the GMM method) of 0.15 was outputted
+  for the full cohort and was also used for this subset of samples
+
 ```{r}
-dist_nearest <- distToNearest(bcr_results_igh)
+dist_nearest <- distToNearest(bcr_results_igh,vCallColumn = "v_call",jCallColumn = "j_call",cellIdColumn = "unique_cell_id")
 
 # Automated Threshold - takes too long to run
 # - Threshold setting occurs by default when running the immcantation pipeline
@@ -384,12 +430,12 @@ p1 <- ggplot2::ggplot(subset(dist_nearest, !is.na(dist_nearest)),
 plot(p1)
 ```
 
-
 # 2. Rank diversity
 
-https://alakazam.readthedocs.io/en/stable/vignettes/Diversity-Vignette/
+<https://alakazam.readthedocs.io/en/stable/vignettes/Diversity-Vignette/>
 
 ### -color themes
+
 ```{r}
 comp_colors <- c("CSF"="blue", "PB"="tomato2")
 t_annot_colors <- c("CD4 T cells"="seagreen", "CD8 T cells"="steelblue")
@@ -401,7 +447,9 @@ b_status_colors <- c("Disease"="steelblue")
 ```
 
 ### a. T/B cells CSF vs. PB
-* Disease and Healthy patients
+
+- Disease and Healthy patients
+
 ```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
@@ -420,9 +468,10 @@ panel_rank_curves <- plot_grid(r1,r2,ncol = 2)
 panel_rank_curves
 ```
 
-
 ### b. T/B cells annotated subtypes
-* Disease and Healthy patients
+
+- Disease and Healthy patients
+
 ```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
@@ -440,8 +489,8 @@ panel2_rank_curves <- plot_grid(r3,r4,ncol = 2)
 panel2_rank_curves
 ```
 
-
 ### c. Disease vs. Healthy (CSF & PB)
+
 ```{r,fig.height=3, fig.width=8,warning=FALSE}
 set.seed(seed.number)
 
@@ -460,7 +509,8 @@ panel3_rank_curves
 
 ### d. Disease vs. Healthy - CSF
 
-* There are no BCRs in the CSF of the healthy patient
+- There are no BCRs in the CSF of the healthy patient
+
 ```{r,fig.height=3, fig.width=7,warning=FALSE}
 set.seed(seed.number)
 
@@ -484,8 +534,8 @@ panel4_rank_curves <- plot_grid(r7,r8,ncol = 2)
 panel4_rank_curves
 ```
 
-
 # 3. V/J usage T cells
+
 ```{r}
 vfamily <- countGenes(tcr_results_csf, gene="v_call", groups=c("SUBTYPE_ANNOTATION", "STATUS"), 
                      clone="clone_id", mode="family")
@@ -521,6 +571,7 @@ plot_grid(g1,g2,nrow=2)
 ```
 
 # 4. C usage B cells
+
 ```{r}
 bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
 bcr_results_igh_pb  <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "PB",]
@@ -532,7 +583,6 @@ cfamily_pb <- countGenes(bcr_results_igh_pb, gene="c_call", groups=c("SUBTYPE_AN
                      clone="clone_id", mode="family")
 head(cfamily_csf, n=4)
 ```
-
 
 ```{r,fig.height=8, fig.width=6,echo=TRUE,warning=FALSE}
 # fig.height=8 | fig.height=7 for workshop
@@ -560,23 +610,26 @@ g2 <- ggplot(cfamily_pb, aes(x=gene, y=clone_freq)) +
 plot_grid(g1,g2,nrow=2)
 ```
 
-# 5. B cell Alpha Diversity 
+# 5. B cell Alpha Diversity
 
-* Local species diversity (in this case, used for B & T cell populations)
+- Local species diversity (in this case, used for B & T cell
+  populations)
 
-* Interpretation of X-axis diversity scores
-0    : species richness (R) (general diversity index)
-0->1 : Shannon Diversity => exponent of Shannon-Weiner index
-1->2 : Simpson Diversity => inverse of the Simpson index
-2->4 : inverse reciprocal of the largest clone, diversity of most abundant clone
+- Interpretation of X-axis diversity scores 0 : species richness (R)
+  (general diversity index) 0-\>1 : Shannon Diversity =\> exponent of
+  Shannon-Weiner index 1-\>2 : Simpson Diversity =\> inverse of the
+  Simpson index 2-\>4 : inverse reciprocal of the largest clone,
+  diversity of most abundant clone
 
 ### -color themes
+
 ```{r}
 comp_colors  <- c("CSF"="blue", "PB"="tomato2")
 comp_colors2 <- c("PB"="tomato2")
 ```
 
 ### a. generate diversity results for B cell isotypes (CSF vs. PB)
+
 ```{r}
 set.seed(seed.number)
 
@@ -601,6 +654,7 @@ table(bcr_results_igh$c_call)
 ```
 
 ### b. plot diversity curves
+
 ```{r,fig.height=3,fig.width=7}
 a1<-plot(a1_curve,main_title="IgM alpha diversity",colors=comp_colors)
 a2<-plot(a2_curve,main_title="IgA1 alpha diversity",colors=comp_colors2)
@@ -617,12 +671,14 @@ panel_ad
 # 6. T cell Alpha Diversity
 
 ### -color themes
+
 ```{r}
 comp_colors  <- c("CSF"="blue", "PB"="tomato2")
 comp_colors2 <- c("PB"="tomato2")
 ```
 
 ### a. generate diversity results for T cell subtypes (CSF vs. PB)
+
 ```{r}
 set.seed(seed.number)
 
@@ -643,6 +699,7 @@ a10_curve <- alphaDiversity(tcr_results_h_cd8, group="COMPARTMENT",min_q=0, max_
 ```
 
 ### b. Disease T cell CSF/PB diversity
+
 ```{r,fig.height=3,fig.width=7}
 a7<-plot(a7_curve,main_title="CD4 Disease alpha diversity",colors=comp_colors)
 a8<-plot(a8_curve,main_title="CD8 Disease alpha diversity",colors=comp_colors)
@@ -653,8 +710,8 @@ panel_tcr_ad <- plot_grid(a7,a8,nrow = 1)
 panel_tcr_ad
 ```
 
-
 ### c. Healthy T cell CSF/PB diversity
+
 ```{r,fig.height=3,fig.width=7}
 a9<-plot(a9_curve,main_title="CD4 Healthy alpha diversity",colors=comp_colors)
 a10<-plot(a10_curve, main_title="CD8 Healthy alpha diversity",colors=comp_colors)
@@ -667,11 +724,13 @@ panel_tcr_ad2
 
 # 7. Mutational Profile of B cells
 
-* Counts Replacement and Silent mutations across CDR and FWR regions
-* Can specify specific regions and type of mutation (R/S)
-* Further exploration: https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
+- Counts Replacement and Silent mutations across CDR and FWR regions
+- Can specify specific regions and type of mutation (R/S)
+- Further exploration:
+  <https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/>
 
 ### a. generate mutation counts
+
 ```{r}
 set.seed(seed.number)
 
@@ -692,8 +751,10 @@ bcr_pb_obs <- observedMutations(bcr_results_igh_pb, sequenceColumn="sequence_ali
 ```
 
 ### b. plot clonotype mutations - median mutation freq
-* Large number of clones have no mutations in PB
-* Far more mutations in PB when considering the scale
+
+- Large number of clones have no mutations in PB
+- Far more mutations in PB when considering the scale
+
 ```{r,fig.height=3, fig.width=7,echo=TRUE,warning=FALSE}
 # CSF 
 bcr_csf_mut_freq_clone <- bcr_csf_obs %>%
@@ -716,6 +777,7 @@ plot_grid(p_mut_pb,p_mut_csf,ncol = 2)
 ```
 
 ### c. boxplot across different sub-classes
+
 ```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
 # fig.height=6 | fig.height=3 for workshop
 
@@ -735,15 +797,17 @@ grid.arrange(g1,g2,nrow=2)
 
 # 8. Mutational hot spots Observed among all 5-mers - B cells
 
-* known 5-mer motifs observed in literature are highlighted in color (https://www.frontiersin.org/articles/10.3389/fimmu.2013.00358/full)
-    * WA/TW
-    * WRC/GYW
-    * SYC/GRS
-* https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/
+- known 5-mer motifs observed in literature are highlighted in color
+  (<https://www.frontiersin.org/articles/10.3389/fimmu.2013.00358/full>)
+  - WA/TW
+  - WRC/GYW
+  - SYC/GRS
+- <https://shazam.readthedocs.io/en/stable/vignettes/Targeting-Vignette/>
 
 ### a. setup models
 
-* Only focus on BCRs from the Disease patient
+- Only focus on BCRs from the Disease patient
+
 ```{r}
 set.seed(seed.number)
 
@@ -753,7 +817,8 @@ clone_db      <- collapseClones(bcr_results_igh_d, nproc=1)
 model_disease <- createTargetingModel(clone_db, model="rs", sequenceColumn="clonal_sequence", germlineColumn="clonal_germline")
 ```
 
-### b. Plot Disease 
+### b. Plot Disease
+
 ```{r}
 m1 <- plotMutability(model_disease, nucleotides="A", style="hedgehog")
 m2 <- plotMutability(model_disease, nucleotides="C", style="hedgehog")
@@ -761,17 +826,19 @@ m3 <- plotMutability(model_disease, nucleotides="G", style="hedgehog")
 m4 <- plotMutability(model_disease, nucleotides="T", style="hedgehog")
 ```
 
-
 # 9. Trees - B cells
 
-* Dowser
-https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/
+- Dowser
+  <https://dowser.readthedocs.io/en/latest/vignettes/Plotting-Trees-Vignette/>
 
-## Dowser 
+## Dowser
 
 ### a. format clones
-* Need larger clonotypes across more samples to effectively use this tool
-* Trees are only made for one clonotype ID at a time
+
+- Need larger clonotypes across more samples to effectively use this
+  tool
+- Trees are only made for one clonotype ID at a time
+
 ```{r}
 # No BCR clones of sufficient size for making trees with dowser
 input_trees            <- bcr_df
@@ -783,7 +850,9 @@ print(clones)
 
 ### b. build tree
 
-* Since our data doesn't have one large BCR clonotype, lets generate an example tree with public data
+- Since our data doesn't have one large BCR clonotype, lets generate an
+  example tree with public data
+
 ```{r}
 # Follow tutorial instead
 
