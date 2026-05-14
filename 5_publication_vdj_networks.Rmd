@@ -33,7 +33,9 @@ What this script adds compared to `4_find_candidates.Rmd`:
 1.  **ggraph + tidygraph backend.** Networks are drawn through ggplot2's
     grammar, so layout, color, size, theme and legend all behave like any
     other ggplot.
-2.  **Colorblind-safe palettes** (Okabe-Ito) used consistently across panels.
+2.  **Consistent palettes.** Compartment and patient colors match the base-R
+    networks in `4_find_candidates.Rmd` (CSF / P28 = dark blue, PB / P32 =
+    tomato); continuous variables use a colorblind-safe viridis ramp.
 3.  **Multi-panel composition with patchwork.** Each Figure X is a single
     object you can write to a single PDF.
 4.  **Companion visualizations** that contextualize the networks:
@@ -111,11 +113,16 @@ log-scaled to the clone size; fill encodes compartment (CSF vs PB).
 
 The layout is **category-constrained**: each clone is classified as CSF-pure,
 compartment-shared, or PB-pure based on the composition of its member cells,
-and clones are packed into three side-by-side bands accordingly. Within each
-band clones are arranged in a non-overlapping grid; within each clone, cells
-are laid out on a tight circle whose radius scales with √(clone size). The
-result is a network where the spatial story is readable at a glance: "look
-at the left band → those are CSF-restricted clones".
+and clones are sorted into side-by-side bands accordingly. Bands that contain
+no clones are dropped — if a repertoire has no compartment-shared clones, the
+figure is drawn as two bands (CSF | PB) with no blank middle strip. Within
+each band the clones are laid out with `igraph::layout_components()`: every
+clone gets an organic Fruchterman-Reingold layout and the clones are packed
+so they never overlap, which gives the panel a natural "real network" look
+rather than a rigid grid. Band widths are matched to the aspect ratio of
+each band's packed layout, so the rescale into the panel is distortion-free.
+The result is a network where the spatial story is readable at a glance:
+"look at the left band → those are CSF-restricted clones".
 
 ### a. Build nodes / edges / graphs
 
@@ -143,20 +150,34 @@ g_bcr_hc     <- build_repertoire_tidygraph(bcr_node_hc, bcr_edges_hc)
 
 ### b. Render each panel
 
+The CSF / PB band captions are drawn inside each panel, so the panel
+subtitle is kept short to avoid the title block crowding on PDF export.
+
 ```{r bcr_plots, fig.height=6, fig.width=13}
+# Shared styling for both BCR panels. `band_fill` (< 1) leaves a margin so
+# clones never touch the band edge; `aspect` is the overall canvas shape.
+bcr_layout_args <- list(aspect = 1.7, band_fill = 0.90, band_gap = 0.10)
+
+# A shared clone-size limit so patchwork collects ONE size legend for the
+# pair instead of a slightly different legend per panel.
+bcr_size_lim <- range(c(as_tibble(g_bcr_dis, "nodes")$clone_size,
+                        as_tibble(g_bcr_hc,  "nodes")$clone_size),
+                      na.rm = TRUE)
+
 p_bcr_dis <- plot_repertoire_network(
   g_bcr_dis,
   color_by    = "compartment",
   layout      = "grouped",
-  layout_args = list(node_radius = 0.030, gap_factor = 1.25, aspect = 1.4),
-  edge_alpha  = 0.25,
+  layout_args = bcr_layout_args,
+  edge_alpha  = 0.30,
   edge_width  = 0.30,
-  size_range  = c(1.4, 5.5),
+  size_range  = c(1.2, 4.5),
+  size_limits = bcr_size_lim,
   label_top_n = 5,
   label_col   = "clone_id",
   band_labels = TRUE,
   title       = "B cell repertoire — Disease (P28)",
-  subtitle    = "Left band: CSF-restricted   Middle: compartment-shared   Right: PB-restricted",
+  subtitle    = "Clones with ≥ 2 cells; fill = compartment",
   seed        = seed.number
 )
 
@@ -164,15 +185,16 @@ p_bcr_hc <- plot_repertoire_network(
   g_bcr_hc,
   color_by    = "compartment",
   layout      = "grouped",
-  layout_args = list(node_radius = 0.030, gap_factor = 1.25, aspect = 1.4),
-  edge_alpha  = 0.25,
+  layout_args = bcr_layout_args,
+  edge_alpha  = 0.30,
   edge_width  = 0.30,
-  size_range  = c(1.4, 5.5),
+  size_range  = c(1.2, 4.5),
+  size_limits = bcr_size_lim,
   label_top_n = 5,
   label_col   = "clone_id",
   band_labels = TRUE,
   title       = "B cell repertoire — Healthy (P32)",
-  subtitle    = "Left band: CSF-restricted   Middle: compartment-shared   Right: PB-restricted",
+  subtitle    = "Clones with ≥ 2 cells; fill = compartment",
   seed        = seed.number
 )
 
@@ -225,14 +247,23 @@ g_tcr_hc     <- build_repertoire_tidygraph(tcr_node_hc, tcr_edges_hc)
 ### b. Render
 
 ```{r tcr_plots, fig.height=6, fig.width=13}
+# T cell repertoires have many more clones, so the canvas is a touch wider
+# and the nodes a touch smaller.
+tcr_layout_args <- list(aspect = 1.9, band_fill = 0.92, band_gap = 0.10)
+
+tcr_size_lim <- range(c(as_tibble(g_tcr_dis, "nodes")$clone_size,
+                        as_tibble(g_tcr_hc,  "nodes")$clone_size),
+                      na.rm = TRUE)
+
 p_tcr_dis <- plot_repertoire_network(
   g_tcr_dis,
   color_by    = "compartment",
   layout      = "grouped",
-  layout_args = list(node_radius = 0.020, gap_factor = 1.20, aspect = 1.4),
-  edge_alpha  = 0.18,
-  edge_width  = 0.22,
-  size_range  = c(1.0, 5.0),
+  layout_args = tcr_layout_args,
+  edge_alpha  = 0.15,
+  edge_width  = 0.20,
+  size_range  = c(0.8, 3.6),
+  size_limits = tcr_size_lim,
   label_top_n = 4,
   band_labels = TRUE,
   title       = "T cell repertoire — Disease (P28)",
@@ -244,10 +275,11 @@ p_tcr_hc <- plot_repertoire_network(
   g_tcr_hc,
   color_by    = "compartment",
   layout      = "grouped",
-  layout_args = list(node_radius = 0.020, gap_factor = 1.20, aspect = 1.4),
-  edge_alpha  = 0.18,
-  edge_width  = 0.22,
-  size_range  = c(1.0, 5.0),
+  layout_args = tcr_layout_args,
+  edge_alpha  = 0.15,
+  edge_width  = 0.20,
+  size_range  = c(0.8, 3.6),
+  size_limits = tcr_size_lim,
   label_top_n = 4,
   band_labels = TRUE,
   title       = "T cell repertoire — Healthy (P32)",
@@ -301,6 +333,39 @@ cd8_edges <- createRepertoireEdgeDataframe(cd8_node)
 g_cd8     <- build_repertoire_tidygraph(cd8_node, cd8_edges)
 ```
 
+### b. Render — nodes colored by mean CDR3 length
+
+`color_by = "mean_cdr3_len"` is a continuous variable, so the network is
+drawn with a perceptually uniform viridis ramp instead of the discrete
+compartment/patient palettes. Clones are still packed into CSF / PB bands.
+
+```{r cd8_plot, fig.height=6, fig.width=8}
+p_cd8 <- plot_repertoire_network(
+  g_cd8,
+  color_by    = "mean_cdr3_len",
+  layout      = "grouped",
+  layout_args = list(aspect = 1.6, band_fill = 0.92, band_gap = 0.10),
+  edge_alpha  = 0.15,
+  edge_width  = 0.20,
+  size_range  = c(0.9, 3.8),
+  label_top_n = 0,
+  band_labels = TRUE,
+  title       = "CD8 T cell repertoire — mean CDR3β length",
+  subtitle    = "Expanded CD8 clones, both patients; fill = mean CDR3β length (aa)",
+  seed        = seed.number
+)
+p_cd8
+```
+
+### c. Save vector PDF + 300-DPI PNG
+
+```{r cd8_pdf, eval=FALSE}
+save_pub_figure(p_cd8,
+                file_basename = file.path(fig_dir, "Fig3_CD8_CDR3_length"),
+                width_class   = "1.5",
+                height_mm     = 110,
+                also_png      = TRUE)
+```
 
 ### -----------------------------
 
@@ -437,8 +502,11 @@ g_gliph     <- build_repertoire_tidygraph(gliph_node, gliph_edges)
 For the GLIPH network the meaningful spatial axis is *patient identity*
 rather than compartment, since GLIPH groups are by definition CSF-only here.
 We use `compartment_col = "patient"` so the same grouped-layout machinery
-puts P28-only clones on one side, shared clones in the middle, and P32-only
-clones on the other side.
+puts P28-only clones in one band, shared GLIPH groups in the middle, and
+P32-only clones in the other band. `band_titles` re-labels the bands in
+patient terms, and the patient palette (P28 = dark blue, P32 = tomato)
+matches `4_find_candidates.Rmd`. If there are no patient-shared GLIPH groups
+the middle band is dropped automatically.
 
 ```{r gliph_plot, fig.height=7, fig.width=10}
 set.seed(seed.number)
@@ -451,17 +519,20 @@ p_gliph <- plot_repertoire_network(
   layout_args = list(compartment_col = "patient",
                      csf_label       = "28",
                      pb_label        = "32",
-                     node_radius     = 0.025,
-                     gap_factor      = 1.25,
-                     aspect          = 1.4),
-  edge_alpha  = 0.45,
-  edge_width  = 0.30,
-  size_range  = c(1.2, 6.5),
+                     aspect          = 1.6,
+                     band_fill       = 0.92,
+                     band_gap        = 0.10),
+  edge_alpha  = 0.25,
+  edge_width  = 0.22,
+  size_range  = c(1.0, 4.8),
   label_top_n = 10,
   label_col   = "net_node_label",
-  band_labels = FALSE,
+  band_labels = TRUE,
+  band_titles = c(CSF   = "Disease-only (P28)",
+                  Mixed = "Shared motifs",
+                  PB    = "Healthy-only (P32)"),
   title       = "GLIPH2 motif network — highly expanded CSF clones",
-  subtitle    = "Disease-only clones (left)   Shared motif groups (centre)   Healthy-only clones (right)",
+  subtitle    = "GLIPH groups; fill = patient",
   seed        = seed.number
 )
 p_gliph
@@ -613,34 +684,7 @@ save_pub_figure(fig_hill,
 
 ### -----------------------------
 
-# 9. Master multi-panel figure (Figure 8 — main figure candidate)
-
-A single master figure combining the disease network, the GLIPH motif network,
-the rank distribution and the Hill profile. This is the kind of composite
-figure that would land as Figure 2 or 3 of an immunology paper.
-
-```{r master, fig.height=11, fig.width=14}
-fig_master <- (
-  (p_bcr_dis | p_tcr_dis) /
-  (p_gliph   | p_rank)    /
-  (p_hill_tcr | p_hill_bcr)
-) +
-  plot_annotation(tag_levels = "a",
-                  title    = "Multi-modal repertoire analysis — disease vs healthy CSF",
-                  subtitle = "BCR networks, GLIPH motifs, Zipf rank, Hill diversity") &
-  theme(plot.tag = element_text(face = "bold", size = 13))
-fig_master
-```
-
-```{r master_pdf, eval=FALSE}
-save_pub_figure(fig_master,
-                file_basename = file.path(fig_dir, "Fig8_master_repertoire"),
-                width_class   = "double", height_mm = 240, also_png = TRUE)
-```
-
-### -----------------------------
-
-# 10. Session info
+# 9. Session info
 
 ```{r session_info}
 sessionInfo()

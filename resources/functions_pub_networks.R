@@ -46,11 +46,16 @@ okabe_ito <- c(
 )
 
 pub_palettes <- list(
-  # Compartment palette includes both "PB" and "PBMC" because different
-  # workshop functions emit different label conventions.
-  compartment = c(CSF = "#0072B2", PB = "#D55E00", PBMC = "#D55E00"),
+  # Compartment / patient palettes deliberately mirror the base-R igraph
+  # networks in 4_find_candidates.Rmd so the publication figures are visually
+  # consistent with the exploratory ones:
+  #   formatIgraphNetwork()      -> CSF = "darkblue", PBMC/PB = "tomato"
+  #   formatIgraphNetworkGLIPH() -> patient 28 = "darkblue", 32 = "tomato"
+  # "PBMC" is included alongside "PB" because the workshop helpers emit
+  # different label conventions.
+  compartment = c(CSF = "darkblue", PB = "tomato", PBMC = "tomato"),
   status      = c(Healthy = "#009E73", Disease = "#CC79A7"),
-  patient     = c(`28` = "#0072B2", `32` = "#E69F00"),
+  patient     = c(`28` = "darkblue", `32` = "tomato"),
   isotype     = c(
     IGHM  = "#56B4E9",
     IGHD  = "#999999",
@@ -105,23 +110,29 @@ theme_pub <- function(base_size = 10, base_family = "") {
 
 # Stripped-down theme for network panels (no axes, no grid, no background).
 # Title is positioned over the plot ("plot" rather than "panel") so it never
-# collides with neighbouring panels when composed with patchwork, and an
-# explicit plot.margin reserves space for the title + subtitle on PNG export.
-theme_network_pub <- function(base_size = 10, base_family = "") {
+# collides with neighbouring panels when composed with patchwork.
+#
+# Font sizes are ABSOLUTE (in points) rather than rel() multiples. rel() sizes
+# compound unpredictably once panels are scaled into a multi-panel PDF, which
+# is what made titles balloon and overlap on export. Fixed point sizes render
+# identically at any figure dimension.
+theme_network_pub <- function(base_size = 9, base_family = "",
+                               title_size = 10, subtitle_size = 8) {
   theme_void(base_size = base_size, base_family = base_family) +
     theme(
       plot.title.position    = "plot",
       plot.caption.position  = "plot",
-      plot.title             = element_text(face = "bold", size = rel(1.05),
-                                            hjust = 0.5,
-                                            margin = margin(t = 2, b = 4)),
-      plot.subtitle          = element_text(size = rel(0.9), color = "grey30",
-                                            hjust = 0.5,
-                                            margin = margin(b = 8)),
-      plot.tag               = element_text(face = "bold", size = rel(1.4)),
-      plot.margin            = margin(t = 14, r = 8, b = 8, l = 8),
-      legend.title           = element_text(size = rel(0.9), face = "bold"),
-      legend.text            = element_text(size = rel(0.85)),
+      plot.title             = element_text(face = "bold", size = title_size,
+                                            hjust = 0.5, lineheight = 1.05,
+                                            margin = margin(t = 1, b = 2)),
+      plot.subtitle          = element_text(size = subtitle_size,
+                                            color = "grey30", hjust = 0.5,
+                                            lineheight = 1.05,
+                                            margin = margin(b = 3)),
+      plot.tag               = element_text(face = "bold", size = 12),
+      plot.margin            = margin(t = 6, r = 10, b = 6, l = 10),
+      legend.title           = element_text(size = 8, face = "bold"),
+      legend.text            = element_text(size = 7),
       legend.position        = "right",
       legend.key             = element_blank(),
       legend.background      = element_blank()
@@ -178,183 +189,163 @@ build_repertoire_tidygraph <- function(node_df, edge_df,
 
 
 # ---------------------------------------------------------------------------
-# 3b. Category-constrained, non-overlapping repertoire layout
+# 3b. Category-constrained repertoire layout (organic, non-overlapping)
 # ---------------------------------------------------------------------------
 # Repertoire networks built by the workshop helpers contain one connected
-# component per clone (each clone is a clique of cells). The default
-# Fruchterman-Reingold layout (i) lets nodes overlap heavily and (ii) does
-# nothing to spatially separate compartments. This function fixes both:
+# component per clone (each clone is a clique of cells). A plain
+# Fruchterman-Reingold layout does nothing to separate compartments; a rigid
+# grid of clones looks unpublishable and squeezes clones into single-file
+# columns. This function takes a middle path:
 #
-#   1. Partitions the connected components (clones) into three bins by their
-#      compartment composition:  CSF-pure | mixed | PB-pure.
-#   2. Packs the components into a 2-D grid that has those three regions as
-#      side-by-side bands, so the eye instantly reads the spatial story
-#      ("CSF cluster on the left, PB cluster on the right, shared clones in
-#      the middle").
-#   3. Within each component lays out the cells on a circle whose radius is
-#      proportional to sqrt(clone_size), so larger clones get more room and
-#      no two nodes ever overlap.
+#   1. Partitions the clones (connected components) into bins by their
+#      compartment composition:  CSF-pure | Mixed | PB-pure. Empty bins are
+#      dropped, so a network with no compartment-shared clones is drawn as
+#      two bands (CSF | PB) with no blank middle strip.
+#   2. For each band it lays out that band's sub-network with
+#      igraph::layout_components(): every clone gets an organic
+#      Fruchterman-Reingold layout, and the clones are packed together so
+#      they never overlap. This is what gives the figure its natural,
+#      "real network" look.
+#   3. Band widths are allocated to match the aspect ratio of each band's
+#      packed layout, so the per-band rescale into the canvas is perfectly
+#      uniform -- no squashing, no single-file columns, no wasted whitespace.
 #
 # Inputs:
 #   g                - tbl_graph or igraph object
 #   compartment_col  - node attribute holding compartment labels.
 #   csf_label/pb_label - the strings that mark the two extreme compartments.
 #   bin_thresh       - numeric in (0.5, 1]; clones with CSF fraction >= this
-#                      are "CSF-pure", <= 1 - this are "PB-pure", rest are
-#                      "Mixed".
-#   node_radius      - target visual radius of a single node, in layout
-#                      coordinates. Used to size per-clone circles.
-#   gap_factor       - extra spacing multiplier between adjacent clones.
-#   aspect           - canvas aspect ratio (width / height).
+#                      are "CSF-pure", <= 1 - this are "PB-pure", rest "Mixed".
+#   band_gap         - horizontal gap left between compartment bands.
+#   band_fill        - fraction (0-1) of each band the layout fills; < 1
+#                      leaves a margin so clones never touch the band edge.
+#   min_aspect/max_aspect - clamp on per-band width:height so a band is never
+#                      drawn as an extreme sliver or ribbon.
+#   aspect           - overall canvas aspect ratio (width / height).
 #
-# Returns a data frame with columns x, y (one row per node, in the order of
-# the node table of `g`), and clone_bin (CSF/Mixed/PB), suitable to be used
-# as a manual layout via ggraph::create_layout(g, layout = "manual", ...).
+# Returns a data frame with columns x, y (one row per node, in node-table
+# order), clone_bin, and .comp_id. The non-empty band rectangles are attached
+# as attr(, "bands") for the plotting helper to draw.
 layout_repertoire_grouped <- function(g,
                                       compartment_col = "compartment",
                                       csf_label       = "CSF",
                                       pb_label        = "PB",
                                       bin_thresh      = 0.85,
-                                      node_radius     = 0.025,
-                                      gap_factor      = 1.18,
+                                      band_gap        = 0.10,
+                                      band_fill       = 0.90,
+                                      min_aspect      = 0.45,
+                                      max_aspect      = 2.6,
                                       aspect          = 1.6,
-                                      seed            = 1234) {
+                                      seed            = 1234,
+                                      ...) {
   set.seed(seed)
   ig <- if (inherits(g, "tbl_graph")) tidygraph::as.igraph(g) else g
-  nodes <- igraph::as_data_frame(ig, what = "vertices")
+  nodes   <- igraph::as_data_frame(ig, what = "vertices")
+  n_total <- nrow(nodes)
 
   # ---- 1. Components (clones) ----
-  comp     <- igraph::components(ig)
+  comp <- igraph::components(ig)
   nodes$.comp_id <- comp$membership
-  n_total  <- nrow(nodes)
 
-  # ---- 2. Per-component composition summary ----
+  # ---- 2. Bin each clone by its compartment composition ----
   if (!(compartment_col %in% colnames(nodes))) {
     stop(sprintf("compartment_col '%s' not found in node attributes", compartment_col))
   }
   comp_df <- nodes %>%
     dplyr::group_by(.comp_id) %>%
     dplyr::summarize(
-      size      = dplyr::n(),
-      csf_n     = sum(.data[[compartment_col]] == csf_label),
-      pb_n      = sum(.data[[compartment_col]] == pb_label),
-      .groups   = "drop"
+      csf_n = sum(.data[[compartment_col]] == csf_label),
+      pb_n  = sum(.data[[compartment_col]] == pb_label),
+      .groups = "drop"
     ) %>%
     dplyr::mutate(
       denom    = pmax(csf_n + pb_n, 1L),
       csf_frac = csf_n / denom,
-      bin      = dplyr::case_when(
-        csf_frac >= bin_thresh        ~ "CSF",
-        csf_frac <= (1 - bin_thresh)  ~ "PB",
-        TRUE                          ~ "Mixed"
-      ),
-      # Internal radius for the per-clone circle of cells
-      r_clone  = pmax(node_radius * 1.4,
-                      sqrt(size) * node_radius * 1.05),
-      # Bounding-box radius incl. node radius and inter-clone gap
-      r_pack   = (r_clone + node_radius) * gap_factor
-    ) %>%
-    # Stable ordering inside each bin: largest clones first
-    dplyr::arrange(bin, dplyr::desc(size))
+      bin = dplyr::case_when(
+        csf_frac >= bin_thresh       ~ "CSF",
+        csf_frac <= (1 - bin_thresh) ~ "PB",
+        TRUE                         ~ "Mixed"
+      )
+    )
+  node_bin <- comp_df$bin[match(nodes$.comp_id, comp_df$.comp_id)]
 
-  # ---- 3. Pack components inside each compartment band ----
-  # The canvas is [-1, 1] horizontally; we split it 1/3 each to CSF, Mixed,
-  # PB. Within each band we do a simple shelf-pack: rows of clones with the
-  # row height set by the largest clone in that row.
-  bin_x_ranges <- list(
-    CSF   = c(-1.0, -0.34),
-    Mixed = c(-0.34, 0.34),
-    PB    = c(0.34, 1.0)
-  )
+  present_bins <- c("CSF", "Mixed", "PB")
+  present_bins <- present_bins[present_bins %in% comp_df$bin]
+  n_bins       <- length(present_bins)
 
-  # Vertical canvas height derived from aspect
-  y_top    <-  1 / aspect
-  y_bottom <- -1 / aspect
-
-  pack_band <- function(sub_df, x_range, y_range) {
-    if (nrow(sub_df) == 0) return(sub_df)
-    band_w <- diff(x_range)
-    band_h <- diff(y_range)
-
-    cx_vec <- numeric(nrow(sub_df))
-    cy_vec <- numeric(nrow(sub_df))
-
-    # Shelf packing top -> down, left -> right
-    cursor_x <- x_range[1]
-    cursor_y <- y_range[2]
-    row_h    <- 0
-
-    for (i in seq_len(nrow(sub_df))) {
-      r <- sub_df$r_pack[i]
-      # Wrap to next row if we'd overflow the band horizontally
-      if (cursor_x + 2 * r > x_range[2] + 1e-9) {
-        cursor_x  <- x_range[1]
-        cursor_y  <- cursor_y - 2 * row_h
-        row_h     <- 0
-      }
-      cx_vec[i] <- cursor_x + r
-      cy_vec[i] <- cursor_y - r
-      cursor_x  <- cursor_x + 2 * r
-      row_h     <- max(row_h, r)
+  # ---- 3. Pass 1: organic per-band layout via layout_components() ----
+  # Each clone is its own connected component; layout_components() lays each
+  # one out with Fruchterman-Reingold and packs them with no overlap.
+  band_layout <- list()
+  band_aspect <- setNames(numeric(n_bins), present_bins)
+  for (b in present_bins) {
+    idx  <- which(node_bin == b)
+    subg <- igraph::induced_subgraph(ig, idx)
+    set.seed(seed)
+    if (igraph::vcount(subg) <= 1) {
+      l <- matrix(0, nrow = igraph::vcount(subg), ncol = 2)
+    } else {
+      l <- igraph::layout_components(subg, layout = igraph::layout_with_fr)
     }
-
-    # If we overflowed vertically, rescale band y to fit
-    used_y <- y_range[2] - (cursor_y - 2 * row_h)
-    if (used_y > band_h) {
-      scale <- band_h / used_y
-      cy_vec <- y_range[2] - (y_range[2] - cy_vec) * scale
-    }
-
-    sub_df$cx <- cx_vec
-    sub_df$cy <- cy_vec
-    sub_df
+    # Centre the band's layout on the origin
+    l[, 1] <- l[, 1] - mean(range(l[, 1]))
+    l[, 2] <- l[, 2] - mean(range(l[, 2]))
+    sx <- diff(range(l[, 1])); if (!is.finite(sx) || sx <= 0) sx <- 1
+    sy <- diff(range(l[, 2])); if (!is.finite(sy) || sy <= 0) sy <- 1
+    band_layout[[b]] <- list(idx = idx, l = l, sx = sx, sy = sy)
+    band_aspect[b]   <- min(max(sx / sy, min_aspect), max_aspect)
   }
 
-  packed <- dplyr::bind_rows(lapply(
-    c("CSF", "Mixed", "PB"),
-    function(bn) {
-      pack_band(
-        dplyr::filter(comp_df, bin == bn),
-        bin_x_ranges[[bn]],
-        c(y_bottom, y_top)
-      )
-    }
-  ))
+  # ---- 4. Allocate band widths to match each band's content aspect ----
+  # Every band is drawn at a common height; a band whose packed layout is
+  # wide gets a proportionally wider slot. Because the slot matches the
+  # content aspect, the Pass-2 rescale is uniform (no distortion).
+  band_h    <- 2 / aspect
+  raw_w     <- band_h * band_aspect
+  total_gap <- band_gap * max(n_bins - 1, 0)
+  if (sum(raw_w) + total_gap > 2) {
+    s      <- (2 - total_gap) / sum(raw_w)
+    raw_w  <- raw_w * s
+    band_h <- band_h * s
+  }
+  used_w <- sum(raw_w) + total_gap
 
-  # ---- 4. Place nodes on a circle around each component centre ----
-  pack_lookup <- packed %>% dplyr::select(.comp_id, cx, cy, r_clone, bin)
-  nodes <- nodes %>%
-    dplyr::left_join(pack_lookup, by = ".comp_id")
-
+  # ---- 5. Pass 2: rescale each band's layout into its slot ----
   out_x <- numeric(n_total)
   out_y <- numeric(n_total)
-  comp_ids <- unique(nodes$.comp_id)
-  for (cid in comp_ids) {
-    idx     <- which(nodes$.comp_id == cid)
-    cx      <- nodes$cx[idx[1]]
-    cy      <- nodes$cy[idx[1]]
-    r_clone <- nodes$r_clone[idx[1]]
-    nin     <- length(idx)
-    if (nin == 1) {
-      out_x[idx] <- cx
-      out_y[idx] <- cy
-    } else {
-      # Distribute cells on a circle; start at top, go clockwise. We add a
-      # small random phase so identically sized clones don't visually rhyme.
-      phase   <- stats::runif(1, 0, 2 * pi)
-      angles  <- phase + seq(0, 2 * pi, length.out = nin + 1)[-1]
-      out_x[idx] <- cx + r_clone * cos(angles)
-      out_y[idx] <- cy + r_clone * sin(angles)
+  band_rects <- data.frame(bin = present_bins,
+                           x_min = NA_real_, x_max = NA_real_,
+                           stringsAsFactors = FALSE)
+  cursor <- -used_w / 2
+  for (i in seq_len(n_bins)) {
+    b   <- present_bins[i]
+    bl  <- band_layout[[b]]
+    w_b <- raw_w[[b]]
+    x0  <- cursor
+    x1  <- cursor + w_b
+    band_rects$x_min[i] <- x0
+    band_rects$x_max[i] <- x1
+    cx  <- (x0 + x1) / 2
+
+    # Uniform scale: fit the content inside band_fill * (w_b x band_h)
+    f <- band_fill * min(w_b / bl$sx, band_h / bl$sy)
+    if (length(bl$idx)) {
+      out_x[bl$idx] <- cx + bl$l[, 1] * f
+      out_y[bl$idx] <-       bl$l[, 2] * f
     }
+    cursor <- x1 + band_gap
   }
 
-  data.frame(
+  out <- data.frame(
     x         = out_x,
     y         = out_y,
-    clone_bin = nodes$bin,
+    clone_bin = node_bin,
     .comp_id  = nodes$.comp_id,
     stringsAsFactors = FALSE
   )
+  # Hand the (non-empty) band rectangles back to the plotting helper.
+  attr(out, "bands") <- band_rects
+  out
 }
 
 
@@ -380,15 +371,23 @@ to_ggraph_layout <- function(g, manual_df) {
 #   layout      - any layout supported by ggraph (e.g. "fr", "kk", "stress",
 #                 "drl"). "stress" requires graphlayouts; "fr" is the
 #                 reliable fallback.
+#   size_limits - optional numeric length-2; fixes the clone-size legend
+#                 limits. Pass the SAME value to sibling panels so patchwork
+#                 collects one shared size legend instead of one per panel.
 #   label_top_n - integer, label the largest N clones (set to 0 to suppress).
 #   label_col   - which node attribute provides labels.
 #   edge_alpha  - 0-1 transparency for edges.
+#   band_labels - logical; draw the compartment band rectangles + captions.
+#   band_titles - optional named character vector mapping bin keys
+#                 ("CSF"/"Mixed"/"PB") to the caption text drawn above each
+#                 band. Defaults to compartment-restriction wording.
 #   title       - plot title.
 #   subtitle    - plot subtitle.
 plot_repertoire_network <- function(g,
                                     color_by    = "compartment",
                                     color_pal   = NULL,
-                                    size_range  = c(1.2, 5.5),
+                                    size_range  = c(1.0, 4.5),
+                                    size_limits = NULL,
                                     layout      = "grouped",
                                     layout_args = list(),
                                     label_top_n = 0,
@@ -397,6 +396,7 @@ plot_repertoire_network <- function(g,
                                     edge_color  = "grey40",
                                     edge_width  = 0.25,
                                     band_labels = TRUE,
+                                    band_titles = NULL,
                                     title       = NULL,
                                     subtitle    = NULL,
                                     seed        = 1234) {
@@ -406,23 +406,24 @@ plot_repertoire_network <- function(g,
     color_pal <- pub_palettes[[color_by]]
   }
 
+  # Is the colour variable continuous (e.g. mean CDR3 length) or categorical?
+  node_attr   <- as_tibble(g, "nodes")
+  is_continuous <- color_by %in% colnames(node_attr) &&
+                   is.numeric(node_attr[[color_by]])
+
   # ---- Resolve layout ----
   band_df <- NULL
   if (identical(layout, "grouped")) {
-    # Category-constrained layout that packs clones into CSF/Mixed/PB bands
-    # and lays out each clone on a circle (no node overlap).
+    # Category-constrained layout that packs clones into compartment bands
+    # and lays each clone out as a non-overlapping sunflower disk.
     manual_args <- c(list(g = g, seed = seed), layout_args)
     manual_df <- do.call(layout_repertoire_grouped, manual_args)
     lyt <- create_layout(g, layout = "manual",
                          x = manual_df$x, y = manual_df$y)
     # Attach bin info for optional band annotation
     lyt$clone_bin <- manual_df$clone_bin
-    band_df <- data.frame(
-      bin   = c("CSF",  "Mixed", "PB"),
-      x_min = c(-1.0,   -0.34,    0.34),
-      x_max = c(-0.34,   0.34,    1.00),
-      stringsAsFactors = FALSE
-    )
+    # Only the bands that actually contain clones (no blank middle strip).
+    band_df <- attr(manual_df, "bands")
   } else if (identical(layout, "stress") &&
              requireNamespace("graphlayouts", quietly = TRUE)) {
     lyt <- create_layout(g, layout = "stress")
@@ -436,31 +437,45 @@ plot_repertoire_network <- function(g,
   p <- ggraph(lyt)
 
   # Subtle band rectangles to make the spatial-category story obvious. Drawn
-  # behind edges/nodes; muted color so they don't fight the data.
-  if (!is.null(band_df) && isTRUE(band_labels)) {
-    y_lo <- min(lyt$y, na.rm = TRUE) - 0.05
-    y_hi <- max(lyt$y, na.rm = TRUE) + 0.10
+  # behind edges/nodes; muted colour so they don't fight the data. Only the
+  # non-empty bands are drawn, and the band caption sits in reserved head-
+  # room above the data so it never collides with the panel subtitle.
+  if (!is.null(band_df) && isTRUE(band_labels) && nrow(band_df) > 0) {
+    bin_fill <- c(CSF   = unname(pub_palettes$compartment[["CSF"]]),
+                  Mixed = "#999999",
+                  PB    = unname(pub_palettes$compartment[["PB"]]))
+    # Captions are kept short so they fit inside narrow bands without
+    # neighbouring captions colliding.
+    default_titles <- c(CSF   = "CSF-restricted",
+                        Mixed = "Shared",
+                        PB    = "PB-restricted")
+    if (!is.null(band_titles)) {
+      default_titles[names(band_titles)] <- band_titles
+    }
+
+    y_rng <- range(lyt$y, na.rm = TRUE)
+    y_pad <- 0.05 * diff(y_rng)
+    y_lo  <- y_rng[1] - y_pad
+    y_hi  <- y_rng[2] + y_pad
+    y_cap <- y_hi + 0.04 * diff(y_rng)   # caption sits just above the band
     band_df$y_min <- y_lo
     band_df$y_max <- y_hi
-    band_df$fill  <- c("#0072B2", "#999999", "#D55E00")
+
     p <- p +
       geom_rect(data = band_df,
                 aes(xmin = x_min, xmax = x_max,
                     ymin = y_min, ymax = y_max,
                     fill = bin),
                 inherit.aes = FALSE,
-                color = NA, alpha = 0.06) +
-      ggplot2::scale_fill_manual(
-        values = c(CSF = "#0072B2", Mixed = "#999999", PB = "#D55E00"),
-        guide  = "none"
-      ) +
+                color = NA, alpha = 0.07) +
+      ggplot2::scale_fill_manual(values = bin_fill, guide = "none") +
       annotate("text",
                x      = (band_df$x_min + band_df$x_max) / 2,
-               y      = y_hi - 0.02,
-               label  = c("CSF-restricted clones",
-                          "Compartment-shared",
-                          "PB-restricted clones"),
-               size   = 2.6, color = "grey25", fontface = "italic")
+               y      = y_cap,
+               label  = unname(default_titles[band_df$bin]),
+               size   = 2.5, color = "grey25", fontface = "italic",
+               vjust  = 0) +
+      ggplot2::expand_limits(y = y_cap + 0.10 * diff(y_rng))
     # ggraph uses fill on nodes; reset to a new fill scale via ggnewscale
     if (requireNamespace("ggnewscale", quietly = TRUE)) {
       p <- p + ggnewscale::new_scale_fill()
@@ -472,17 +487,23 @@ plot_repertoire_network <- function(g,
                     edge_width  = edge_width,
                     edge_alpha  = edge_alpha) +
     geom_node_point(aes(size = clone_size, fill = .data[[color_by]]),
-                    shape = 21, color = "grey15", stroke = 0.35,
+                    shape = 21, color = "grey15", stroke = 0.30,
                     alpha = 0.92) +
-    scale_size_continuous(range = size_range,
+    scale_size_continuous(range  = size_range,
                           trans  = "log10",
+                          limits = size_limits,
                           breaks = c(2, 5, 10, 25, 50, 100),
                           name   = "Clone\nsize") +
     coord_fixed(clip = "off") +
     theme_network_pub() +
     labs(title = title, subtitle = subtitle, fill = color_by)
 
-  if (!is.null(color_pal)) {
+  if (is_continuous) {
+    # Continuous colour variable (e.g. mean CDR3 length): use a perceptually
+    # uniform viridis ramp rather than a discrete palette.
+    p <- p + scale_fill_viridis_c(option = "viridis", na.value = "grey70",
+                                  name = color_by)
+  } else if (!is.null(color_pal)) {
     p <- p + scale_fill_manual(values = color_pal, na.value = "grey70",
                                name = color_by)
   } else {
@@ -501,22 +522,29 @@ plot_repertoire_network <- function(g,
     node_tbl <- node_tbl[order(-as.numeric(node_tbl$clone_size)), ]
     node_tbl <- node_tbl[!duplicated(node_tbl[[label_col]]), ]
     keep_lbl <- head(node_tbl, label_top_n)
+    # Keep repelled labels inside the panel: they may drift up/down but not
+    # into the band caption strip or below the band.
+    y_rng    <- range(lyt$y, na.rm = TRUE)
+    lbl_ylim <- c(y_rng[1] - 0.04 * diff(y_rng),
+                  y_rng[2] + 0.03 * diff(y_rng))
     if (requireNamespace("ggrepel", quietly = TRUE)) {
       p <- p + ggrepel::geom_text_repel(
         data = keep_lbl,
         aes(x = .x, y = .y, label = .data[[label_col]]),
         inherit.aes = FALSE,
-        size = 2.4, color = "black",
-        bg.color = "white", bg.r = 0.12,
+        size = 2.1, color = "black", fontface = "bold",
+        bg.color = "white", bg.r = 0.15,
+        ylim = lbl_ylim,
+        box.padding = 0.45, point.padding = 0.15,
         max.overlaps = Inf, min.segment.length = 0,
-        segment.size = 0.2
+        segment.size = 0.2, segment.color = "grey50"
       )
     } else {
       p <- p + geom_text(
         data = keep_lbl,
         aes(x = .x, y = .y, label = .data[[label_col]]),
         inherit.aes = FALSE,
-        size = 2.4, color = "black"
+        size = 2.1, color = "black"
       )
     }
   }
