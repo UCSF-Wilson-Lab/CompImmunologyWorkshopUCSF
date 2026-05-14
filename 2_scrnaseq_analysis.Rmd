@@ -35,6 +35,10 @@ suppressPackageStartupMessages(library(cowplot))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(impactSingleCellToolkit))
 
+suppressPackageStartupMessages(library(patchwork))
+suppressPackageStartupMessages(library(SingleCellExperiment))
+suppressPackageStartupMessages(library(dreamlet))
+
 source("resources/functions_workshop.R")
 ```
 
@@ -108,10 +112,10 @@ h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
 
 
 
-# 3. Differential Gene Expression (DGE)
+# 3. Differential Gene Expression (DGE) CSF vs PBMC
 
 * In this section we are using the standard DGE tools in Seurat
-* For more complex analyses, it is worth exporing the **dreamlet** R package which implements pseudobulk analyses
+* For more complex analyses, it is worth exploring the **dreamlet** R package which implements pseudobulk analyses
 
 ### a. B cells - CSF vs. PB
 ```{r}
@@ -127,7 +131,7 @@ top_genes_bcells       <- dge_compartment_bcells %>% group_by(cluster) %>% top_n
 ```
 
 
-#### Heatmaps - B cells
+### b. Heatmaps - B cells
 ```{r,fig.height=6,fig.width=9,warning=FALSE}
 Idents(bcell_obj) <- bcell_obj$compartment
 levels(bcell_obj) <- c("CSF","PB")
@@ -147,7 +151,7 @@ p1
 p1.2
 ```
 
-#### Volcano plot CSF DGE
+### c. Volcano plot CSF DGE
 
 ```{r,fig.height=7,fig.width=6,warning=FALSE}
 dge_compartment_bcells_csf <- dge_compartment_bcells_all[dge_compartment_bcells_all$cluster %in% "CSF",]
@@ -169,7 +173,50 @@ plot_volcano<- EnhancedVolcano(toptable = dge_compartment_bcells_csf,
 plot_volcano
 ```
 
-# 4. T cell DGE - Expanded vs Non-Expanded Clones
+# 4. Pseudobulk analysis - Cells that overlap VDJ
+
+### a. pseudobulk aggregation
+```{r}
+# Seurat -> SingleCellExperiment
+sce <- as.SingleCellExperiment(rnaseq_obj)
+
+sce$status <- factor(sce$status,
+                     levels = c("Healthy", "Disease"))
+
+sce$compartment <- factor(sce$compartment,
+                          levels = c("PB", "CSF"))
+
+# Pseudobulk by donor-sample within the B-cell cluster
+pb <- aggregateToPseudoBulk(
+  sce,
+  assay = "counts",
+  cluster_id = "main.celltype.annot",
+  sample_id = "sample",
+  verbose = FALSE
+)
+```
+
+### b. DGE
+```{r}
+res.proc <- processAssays(pb, ~status + compartment, min.count = 1)
+res.dl <- dreamlet(res.proc, ~status + compartment)
+
+coefNames(res.dl)
+```
+
+### c. Volcano panel
+```{r}
+p1 <- plotVolcano(res.dl, coef = "compartmentCSF") +
+  ggtitle("compartmentCSF\n(CSF vs PB)")
+
+p2 <- plotVolcano(res.dl, coef = "statusDisease") +
+  ggtitle("statusDisease\n(Disease vs Healthy)")
+
+p1 + p2
+```
+
+
+# 5. T cell DGE - Expanded vs Non-Expanded Clones
 
 ### a. run DGE on T cells Expanded vs. Non-expanded (CSF)
 ```{r echo=TRUE, fig.height=7, fig.width=8, warning=FALSE}
@@ -200,7 +247,7 @@ DotPlot(object = tcell_obj_csf,features = unique(top_expanded_tcells$gene)) + th
 ```
 
 
-# 5. B cell DGE - Expanded vs Non-Expanded Clonotypes
+# 6. B cell DGE - Expanded vs Non-Expanded Clonotypes
 
 ### a. run DGE on B cells Expanded vs. Non-expanded (CSF and PB)
 ```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
@@ -235,7 +282,10 @@ top_expanded <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% "Expanded B memory"
 DotPlot(object = bcell_obj_csfpb,features = unique(top_expanded$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF Expanded vs. Non-Expanded") + coord_flip()
 ```
 
-# 4. Pathway analysis
+
+### -------------
+
+# 7. Pathway analysis
 
 ```{r,warning=FALSE}
 suppressPackageStartupMessages(library(ReactomePA))

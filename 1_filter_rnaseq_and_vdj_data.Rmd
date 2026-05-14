@@ -252,7 +252,7 @@ p_rnaseq
 ```
 
 
-# 4. Plot cell before and after VDJ filter
+# 5. Plot cell before and after VDJ filter
 
 ### a. SingleR annotations pre and post VDJ filter
 
@@ -284,7 +284,7 @@ p2_post_filter_azimuth <- DimPlot(object = rnaseq_obj, group.by="predicted.cellt
 plot_grid(p1_pre_filter_azimuth,p2_post_filter_azimuth,ncol = 2)
 ```
 
-# 5. Add columns to VDJ data
+# 6. Add columns to VDJ data
 
 - This code block gets stuck when running. To fix this press **return** in the R console
 
@@ -309,7 +309,7 @@ bcr_df$STATUS[bcr_df$STATUS %in% "32"] <- "Healthy"
 bcr_df$STATUS[bcr_df$STATUS %in% "28"] <- "Disease"
 ```
 
-# 6. Re-cluster
+# 7. Re-cluster
 
 - This line should only be run once
 
@@ -318,7 +318,7 @@ set.seed(seed.number)
 rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:6,npca = 5,resolution = 0.3,dim.reduction = T)
 ```
 
-# 7. Plot cell type annotations after re-clustering
+# 8. Plot cell type annotations after re-clustering
 
 ### a. SingleR
 
