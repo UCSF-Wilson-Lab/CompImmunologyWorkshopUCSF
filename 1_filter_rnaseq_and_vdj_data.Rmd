@@ -132,7 +132,125 @@ bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "y
 tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "yes"
 ```
 
-### c. plot showing the overlap
+# 4. Show overlap for TCR and BCR 
+
+### a. make dataframe of all VDJ cells and its overlaps
+```{r}
+overlap_df_bcr <- bcr_df[bcr_df$locus %in% "IGH",c("unique_cell_id","COMPARTMENT")]
+overlap_df_tcr <- tcr_df[tcr_df$locus %in% "TRB",c("unique_cell_id","COMPARTMENT")]
+
+# Merge while keeping all rows and all columns
+merged_df <- merge(
+  overlap_df_bcr,
+  overlap_df_tcr,
+  by = "unique_cell_id",
+  all = TRUE,
+  suffixes = c("_bcr", "_tcr")
+)
+
+# Add status columns
+merged_df$BCR_status <- ifelse(
+  !is.na(merged_df$COMPARTMENT_bcr),
+  "BCR",
+  NA
+)
+
+merged_df$TCR_status <- ifelse(
+  !is.na(merged_df$COMPARTMENT_tcr),
+  "TCR",
+  NA
+)
+
+# Optional: combined classification
+merged_df$cell_status <- dplyr::case_when(
+  !is.na(merged_df$COMPARTMENT_bcr) & !is.na(merged_df$COMPARTMENT_tcr) ~ "Both",
+  !is.na(merged_df$COMPARTMENT_bcr) ~ "BCR_only",
+  !is.na(merged_df$COMPARTMENT_tcr) ~ "TCR_only",
+  TRUE ~ "Neither"
+)
+
+# RNA-Seq overlap
+merged_df$rnaseq_overlap <- "no"
+merged_df[merged_df$unique_cell_id %in% colnames(rnaseq_obj), "rnaseq_overlap"] <- "yes"
+merged_df$sample <- tstrsplit(merged_df$unique_cell_id,"-")[[2]]
+```
+
+### b. barplots of overlaps
+```{r}
+# Define muted publication-style colors
+sample_colors <- c(
+  "28_CSF"  = "#6BAED6",  # lighter muted blue
+  "32_CSF"  = "#2171B5",  # darker muted blue
+  "28_PBMC" = "#FC9272",  # lighter muted red
+  "32_PBMC" = "#CB181D"   # darker muted red
+)
+
+# Ensure factor ordering
+merged_df <- merged_df %>%
+  mutate(
+    cell_class = factor(
+      cell_class,
+      levels = c("TCR_only", "BCR_only", "TCR_and_BCR")
+    ),
+    sample = factor(
+      sample,
+      levels = c("28_CSF", "32_CSF", "28_PBMC", "32_PBMC")
+    )
+  )
+
+# Count data
+plot_df_all <- merged_df %>%
+  filter(!is.na(cell_class)) %>%
+  count(cell_class, sample, name = "n")
+
+plot_df_rnaseq <- merged_df %>%
+  filter(rnaseq_overlap == "yes", !is.na(cell_class)) %>%
+  count(cell_class, sample, name = "n")
+
+# Shared theme
+pub_theme <- theme_classic(base_size = 14) +
+  theme(
+    axis.title = element_text(size = 15, face = "bold"),
+    axis.text = element_text(size = 12, color = "black"),
+    axis.text.x = element_text(face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.title = element_text(size = 13, face = "bold"),
+    legend.text = element_text(size = 11),
+    legend.position = "right",
+    axis.line = element_line(linewidth = 0.8),
+    axis.ticks = element_line(linewidth = 0.8)
+  )
+
+# Plot: all cells
+p_all <- ggplot(plot_df_all,
+                aes(x = cell_class, y = n, fill = sample)) +
+  geom_col(width = 0.75, color = "black", linewidth = 0.2) +
+  scale_fill_manual(values = sample_colors) +
+  labs(
+    x = NULL,
+    y = "Cell count",
+    fill = "Sample",
+    title = "All Cells"
+  ) +
+  pub_theme
+
+# Plot: RNA overlap only
+p_rnaseq <- ggplot(plot_df_rnaseq,
+                   aes(x = cell_class, y = n, fill = sample)) +
+  geom_col(width = 0.75, color = "black", linewidth = 0.2) +
+  scale_fill_manual(values = sample_colors) +
+  labs(
+    x = NULL,
+    y = "Cell count",
+    fill = "Sample",
+    title = "RNA-seq Overlapping Cells"
+  ) +
+  pub_theme
+
+p_all
+p_rnaseq
+```
+
 
 # 4. Plot cell before and after VDJ filter
 
@@ -422,7 +540,12 @@ for (subtype in unique(subtype_annotations_bcr$sub.celltype.annot)) {
 bcr_df$SUBTYPE_ANNOTATION <- bcell_annotation_col
 ```
 
-# 5. define expanded clonotypes
+
+### ---------------
+
+# Defining Expanded populations
+
+# 1. define expanded clonotypes
 
 - createCloneCountTable & addExpansionCategories are in functions_workshop.R
 
@@ -471,7 +594,7 @@ names(expansion_categ_col) <- colnames(rnaseq_obj)
 rnaseq_obj$expansion_category <- expansion_categ_col
 ```
 
-# 6. Look at proportions
+# 2. Look at proportions
 
 ### a. subset B cells
 
@@ -498,6 +621,7 @@ p13 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartm
 plot_grid(p12,p13,nrow=2,align = "v")
 ```
 
+
 ### c. clonotype expansion breakdown
 
 - Expanded T cell populations are observed in all compartments, while expanded B cells show more restriction
@@ -508,6 +632,91 @@ p15 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartm
 
 grid.arrange(p14,p15,nrow=2)
 ```
+
+### ---------------
+
+# Optional - Use Azimuth to clean up annotations
+
+# 1. Map misannotated T cells
+
+### a. make ref and query objects
+```{r}
+MAIN_TCELL_ANNOT <- c("CD4 T","CD8 T","other T")
+
+## Make Reference Object
+cell_ref_tcells <- names(tcell_obj$predicted.celltype.l1[tcell_obj$predicted.celltype.l1 %in% MAIN_TCELL_ANNOT])
+
+tcell_ref_obj <- tcell_obj[,colnames(tcell_obj) %in% cell_ref_tcells]
+
+## Query of non-AE T cells
+t_query_obj <- tcell_obj[,! colnames(tcell_obj) %in% cell_ref_tcells]
+```
+
+### b. re-normalize reference and query
+```{r}
+# Keep the trusted labels in the reference
+tcell_ref_obj$tcell_ref_label <- tcell_ref_obj$predicted.celltype.l1
+
+# change default assay
+DefaultAssay(tcell_ref_obj)  <- "RNA"
+DefaultAssay(t_query_obj)    <- "RNA"
+
+tcell_ref_obj  <- SCTransform(tcell_ref_obj, verbose = FALSE)
+t_query_obj    <- SCTransform(t_query_obj, verbose = FALSE)
+
+tcell_ref_obj <- RunPCA(tcell_ref_obj, verbose = FALSE)
+tcell_ref_obj <- RunUMAP(tcell_ref_obj, dims = 1:30, reduction = "pca",return.model = TRUE,verbose = FALSE)
+```
+
+### c. find anchors
+```{r}
+# mis-annotated cells
+anchors <- FindTransferAnchors(
+  reference = tcell_ref_obj,
+  query = t_query_obj,
+  normalization.method = "SCT",
+  reference.reduction = "pca",
+  dims = 1:30
+)
+```
+
+### d. map annotation onto query
+```{r}
+t_query_obj <- MapQuery(
+  anchorset = anchors,
+  query = t_query_obj,
+  reference = tcell_ref_obj,
+  refdata = list(mapped_tcell_label = "tcell_ref_label"),
+  reference.reduction = "pca",
+  reduction.model = "umap"
+)
+```
+
+# 2. Extract updated annotations
+
+* optionally after completing the annotations, you could refine CD4/CD8 based on whether there is CD8 expression in GEX and CSP
+```{r}
+new_query_annot_df <- t_query_obj@meta.data[,c("predicted.celltype.l1","predicted.mapped_tcell_label","predicted.mapped_tcell_label.score")]
+```
+
+# 3. Update annotations
+
+- Even after going through these steps we can see 
+
+```{r}
+new_col_annot <- tcell_obj$predicted.celltype.l1
+
+uni_query_celltypes <- unique(new_query_annot_df$predicted.mapped_tcell_label)
+for (t_annot in uni_query_celltypes) {
+  cells_to_re_annot <- row.names(new_query_annot_df[new_query_annot_df$predicted.mapped_tcell_label %in% t_annot,])
+  new_col_annot[names(new_col_annot) %in% cells_to_re_annot] <- t_annot
+}
+
+tcell_obj$azimuth_updated_celltype_l1 <- new_col_annot
+
+annot_compare_df <- tcell_obj@meta.data[,c("predicted.celltype.l1", "azimuth_updated_celltype_l1","sub.celltype.annot")]
+```
+
 
 ### ---------------
 
