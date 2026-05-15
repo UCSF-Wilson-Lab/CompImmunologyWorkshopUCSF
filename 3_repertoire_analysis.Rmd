@@ -27,7 +27,7 @@ suppressPackageStartupMessages(library(dowser))
 
 # scRepertoire
 suppressPackageStartupMessages(library(scRepertoire))
-
+suppressPackageStartupMessages(library(patchwork))
 suppressPackageStartupMessages(library(glmGamPoi))
 suppressPackageStartupMessages(library(Seurat))
 suppressPackageStartupMessages(library(dittoSeq))
@@ -51,6 +51,7 @@ input_tcr_fh         <- "data/input_immcantation/input_tcr_filtered_contig_annot
 
 seed.number <- 123456
 
+source("resources/functions_pub_networks.R") 
 source("resources/functions_workshop.R")
 ```
 
@@ -247,82 +248,18 @@ plot_grid(p_scr5,p_scr6,ncol = 2)
 ### b. Kmers
 
 ```{r,fig.height=5,fig.width=9}
-p_scr5_kmer <- percentKmer(bcell_screp, 
-                           cloneCall = "aa",
-                           chain = "IGH", 
-                           motif.length = 5, 
-                           top.motifs = 25)
-
+# TCR Kmers
 p_scr6_kmer <- percentKmer(tcell_screp, 
-                           cloneCall = "aa",
+                           clone.call = "aa",
                            chain = "TRB", 
                            motif.length = 5, 
                            top.motifs = 25)
 
-plot_grid(p_scr5_kmer,p_scr6_kmer,ncol = 2)
+p_scr6_kmer
 ```
 
-# 4. Shared clonotypes
 
-- **numbers** is the number of top clones to evaluate for each group
-  (patient CSF/PBMC)
-- The TCR repertoire will contain many shared clones within a patient,
-  so we will focus on the top 10 largest clones
-
-### a. TCR shared clones
-
-```{r,fig.height=7,fig.width=15}
-# Disease Patient
-p_scr7 <- clonalCompare(tcell_screp, 
-                  chain = "both",
-                  top.clones = 10,
-                  samples = c("28_CSF", "28_PBMC"), 
-                  cloneCall="aa", 
-                  graph = "alluvial")
-# Healthy Control
-p_scr8 <- clonalCompare(tcell_screp, 
-                  chain = "both",
-                  top.clones = 10,
-                  samples = c("32_CSF", "32_PBMC"), 
-                  cloneCall="aa", 
-                  graph = "alluvial")
-
-plot_grid(p_scr7,p_scr8)
-```
-
-### b. BCR shared clonotypes
-
-- Ig Clonotypes do not overlap between compartments across the most
-  abundant clonotypes
-- 'aa' criteria B cell clonotypes are strict and doesn't account for
-  somatic hypermutation
-- When defining clonotypes based on VDJ and CDR3 nucleotide sequences,
-  more overlaps appear
-- Since the CSF repertoire is smaller, when we set numbers = NULL, we
-  can still visualize all the shared clonotype connections
-- The Disease patient contains more shared clonotypes between PBMC and
-  CSF
-
-```{r,fig.height=5,fig.width=15}
-# Disease Patient
-p_scr9 <- clonalCompare(bcell_screp, 
-                  chain = "IGH",
-                  top.clones = NULL,
-                  samples = c("28_CSF", "28_PBMC"), 
-                  cloneCall="strict", 
-                  graph = "alluvial")
-# Healthy Control
-p_scr10 <- clonalCompare(bcell_screp, 
-                  chain = "IGH",
-                  top.clones = NULL,
-                  samples = c("32_CSF", "32_PBMC"), 
-                  cloneCall="strict", 
-                  graph = "alluvial")
-
-plot_grid(p_scr9,p_scr10)
-```
-
-# 5. Shared clonotype scatter plots - TCR
+# 4. Shared clonotype scatter plots - TCR
 
 - Disease patient has an increased number of TCR clones that are PBMC or
   CSF exclusive
@@ -346,7 +283,7 @@ p_scr12 <- clonalScatter(tcell_screp, cloneCall ="aa",
 plot_grid(p_scr11,p_scr12,ncol = 2)
 ```
 
-# 6. Shared clonotypes - proportions
+# 5. Shared clonotypes - proportions
 
 - Proportion of shared clonotypes changes based on the method
 
@@ -363,7 +300,7 @@ p_scr14 <- clonalOverlap(tcell_screp, cloneCall=method,chain = "both", method="o
 plot_grid(p_scr13,p_scr14,ncol = 2)
 ```
 
-# 7. Clonal diversity measures
+# 6. Clonal diversity measures
 
 <https://en.wikipedia.org/wiki/Diversity_index>
 <https://evolution.unibas.ch/walser/bacteria_community_analysis/2015-02-10_MBM_tutorial_combined.pdf>
@@ -375,26 +312,31 @@ plot_grid(p_scr13,p_scr14,ncol = 2)
 - Inv. Simpson - index emphasizes species dominance where proportional
   abundance among clonotype groups are averaged
 
-### a. BCR
-
 ```{r}
 # BCR
-clonalDiversity(bcell_screp, 
-                cloneCall = "strict", 
-                chain = "IGH",
-                group.by = "sample", 
-                n.boots = 100)
-```
+p_bcr <- clonalDiversity(
+  bcell_screp,
+  cloneCall = "strict",
+  chain = "IGH",
+  group.by = "sample",
+  n.boots = 100
+) +
+  ggtitle("BCR") +
+  theme(plot.title = element_text(hjust = 0.5))
 
-### a. TCR
-
-```{r}
 # TCR
-clonalDiversity(tcell_screp, 
-                cloneCall = "aa", 
-                chain = "both",
-                group.by = "sample", 
-                n.boots = 100)
+p_tcr <- clonalDiversity(
+  tcell_screp,
+  cloneCall = "aa",
+  chain = "both",
+  group.by = "sample",
+  n.boots = 100
+) +
+  ggtitle("TCR") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Panel
+p_bcr + p_tcr + plot_layout(ncol = 2)
 ```
 
 ### -----------------------------
@@ -429,6 +371,37 @@ p1 <- ggplot2::ggplot(subset(dist_nearest, !is.na(dist_nearest)),
         theme(axis.title = element_text(size = 18)) + geom_vline(xintercept=0.3, linetype = "longdash",color = "red")
 plot(p1)
 ```
+
+# 1.5 CDR3 lengths
+```{r}
+comp_pal       <- c(CSF = "#0072B2", PB = "#D55E00")
+
+tcr_trb <- tcr_df[tcr_df$locus %in% "TRB",]
+spectra <- tcr_trb %>%
+  dplyr::mutate(v_gene = tstrsplit(v_call, "\\*")[[1]],
+                cdr3_len = nchar(as.character(junction_aa))) %>%
+  dplyr::filter(!is.na(cdr3_len)) %>%
+  dplyr::group_by(v_gene, cdr3_len, COMPARTMENT, STATUS) %>%
+  dplyr::summarize(n = dplyr::n(), .groups = "drop")
+
+# Pick the top 6 V genes overall for clarity
+top_v <- spectra %>%
+  dplyr::group_by(v_gene) %>%
+  dplyr::summarize(total = sum(n), .groups = "drop") %>%
+  dplyr::arrange(dplyr::desc(total)) %>%
+  dplyr::slice_head(n = 6) %>%
+  dplyr::pull(v_gene)
+
+ggplot(spectra %>% dplyr::filter(v_gene %in% top_v),
+       aes(x = cdr3_len, y = n, fill = COMPARTMENT)) +
+  geom_col(position = "dodge", color = "grey20", linewidth = 0.2) +
+  facet_grid(STATUS ~ v_gene, scales = "free_y") +
+  scale_fill_manual(values = comp_pal) +
+  labs(title = "TCR-β spectratype — top 6 V genes",
+       x = "CDR3 length (aa)", y = "Cell count", fill = "Compartment") +
+  theme_pub()
+```
+
 
 # 2. Rank diversity
 
@@ -572,6 +545,7 @@ plot_grid(g1,g2,nrow=2)
 
 # 4. C usage B cells
 
+### a. general usage
 ```{r}
 bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
 bcr_results_igh_pb  <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "PB",]
@@ -608,6 +582,64 @@ g2 <- ggplot(cfamily_pb, aes(x=gene, y=clone_freq)) +
     facet_grid(. ~ SUBTYPE_ANNOTATION)
 
 plot_grid(g1,g2,nrow=2)
+```
+
+### b. BCR isotype switching summary
+
+- Class-switching from IgM/IgD to IgG/IgA/IgE is a marker of T-help-driven
+affinity maturation.
+
+```{r isotype_summary, fig.height=4.5, fig.width=10}
+status_pal     <- c(Healthy = "#009E73", Disease = "#CC79A7")
+bcr_results_igh$patient <- tstrsplit(bcr_results_igh$sample,"_")[[1]]
+
+iso_df <- bcr_results_igh %>%
+  dplyr::distinct(unique_cell_id, c_call, COMPARTMENT, STATUS, patient,
+                  SUBTYPE_ANNOTATION) %>%
+  dplyr::filter(c_call != "", !is.na(c_call)) %>%
+  dplyr::mutate(class = dplyr::case_when(
+    c_call %in% c("IGHM", "IGHD") ~ "Naive (IgM/IgD)",
+    grepl("IGHG", c_call) ~ "IgG",
+    grepl("IGHA", c_call) ~ "IgA",
+    c_call == "IGHE" ~ "IgE",
+    TRUE ~ "Other"
+  ))
+
+iso_summary <- iso_df %>%
+  dplyr::count(STATUS, COMPARTMENT, class) %>%
+  dplyr::group_by(STATUS, COMPARTMENT) %>%
+  dplyr::mutate(frac = n / sum(n)) %>%
+  dplyr::ungroup()
+
+p_iso_bar <- ggplot(iso_summary,
+                    aes(x = COMPARTMENT, y = frac, fill = class)) +
+  geom_col(width = 0.65, color = "grey20", linewidth = 0.3) +
+  facet_wrap(~ STATUS) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_fill_manual(values = c("Naive (IgM/IgD)" = "#56B4E9",
+                               "IgG" = "#E69F00",
+                               "IgA" = "#009E73",
+                               "IgE" = "#882255",
+                               "Other" = "grey75")) +
+  labs(title = "BCR isotype composition by compartment",
+       x = NULL, y = "Fraction of B cells", fill = "Class") +
+  theme_pub()
+
+# Class-switched fraction = 1 - naive
+p_csw <- iso_summary %>%
+  dplyr::group_by(STATUS, COMPARTMENT) %>%
+  dplyr::summarize(class_switched_frac = sum(frac[class != "Naive (IgM/IgD)"]),
+                   .groups = "drop") %>%
+  ggplot(aes(x = COMPARTMENT, y = class_switched_frac, fill = STATUS)) +
+  geom_col(position = position_dodge(0.7), width = 0.6,
+           color = "grey20", linewidth = 0.3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_fill_manual(values = status_pal) +
+  labs(title = "Class-switched B cell fraction",
+       x = NULL, y = "Class-switched (%)", fill = "Status") +
+  theme_pub()
+
+(p_iso_bar | p_csw) + plot_layout(widths = c(2, 1))
 ```
 
 # 5. B cell Alpha Diversity
@@ -867,3 +899,5 @@ plots = plotTrees(ExampleClones, tips="c_call")
 
 plots[[1]]
 ```
+
+
