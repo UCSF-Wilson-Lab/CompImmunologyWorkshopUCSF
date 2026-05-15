@@ -1,5 +1,5 @@
 ---
-title: "Publication-Quality VDJ Repertoire Networks"
+title: "VDJ Repertoire Networks"
 author: "BMS 270 Computational Immunology Workshop"
 output:
   html_document:
@@ -198,7 +198,7 @@ p_bcr_hc <- plot_repertoire_network(
   seed        = seed.number
 )
 
-fig_bcr <- compose_panels(list(p_bcr_dis, p_bcr_hc), ncol = 2,
+fig_bcr <- compose_panels(list(p_bcr_dis, p_bcr_hc), ncol = 1,
                           tag_levels = "a")
 fig_bcr
 ```
@@ -207,7 +207,7 @@ fig_bcr
 
 ```{r bcr_pdf, eval=FALSE}
 save_pub_figure(fig_bcr,
-                file_basename = file.path(fig_dir, "Fig1_BCR_networks"),
+                file_basename = file.path(fig_dir, "BCR_networks"),
                 width_class   = "double",
                 height_mm     = 130,
                 also_png      = TRUE)
@@ -287,89 +287,22 @@ p_tcr_hc <- plot_repertoire_network(
   seed        = seed.number
 )
 
-fig_tcr <- compose_panels(list(p_tcr_dis, p_tcr_hc), ncol = 2, tag_levels = "a")
+fig_tcr <- compose_panels(list(p_tcr_dis, p_tcr_hc), ncol = 1, tag_levels = "a")
 fig_tcr
 ```
 
 ```{r tcr_pdf, eval=FALSE}
 save_pub_figure(fig_tcr,
-                file_basename = file.path(fig_dir, "Fig2_TCR_networks"),
+                file_basename = file.path(fig_dir, "TCR_networks"),
                 width_class   = "double",
                 height_mm     = 130,
                 also_png      = TRUE)
 ```
 
-### -----------------------------
-
-# 4. CD8 T cell networks colored by CDR3 length (Figure 3)
-
-A small but high-information addition: color expanded CD8 clones by mean CDR3
-length, which often tracks antigen-experience and tissue residency.
-
-### a. Build graph with CDR3 metadata
-
-```{r cd8_graph}
-tcr_df_cd8 <- tcr_df_exp[tcr_df_exp$SUBTYPE_ANNOTATION %in% "CD8 T cells", ]
-tcr_df_cd8 <- tcr_df_cd8[tcr_df_cd8$locus %in% "TRB", ]   # beta only for CDR3 length
-
-# Mean beta CDR3 length per clone (one beta per cell after this filter)
-tcr_df_cd8$cdr3_len <- nchar(as.character(tcr_df_cd8$junction_aa))
-clone_cdr3_len <- tapply(tcr_df_cd8$cdr3_len, tcr_df_cd8$clone_id,
-                         function(x) mean(x, na.rm = TRUE))
-
-# Per-cell patient lookup so we don't depend on id-parsing
-cell_patient <- setNames(tcr_df_cd8$patient, tcr_df_cd8$unique_cell_id)
-cell_patient <- cell_patient[!duplicated(names(cell_patient))]
-
-cd8_node <- createRepertoireNodeDataframe(
-  tcr_df_cd8, assay = "tcr", select.patients = c("28", "32"),
-  expansion.thresh = 2
-)
-cd8_node$compartment   <- normalize_compartment(tstrsplit(cd8_node$id, "_")[[2]])
-cd8_node$patient       <- unname(cell_patient[cd8_node$id])
-cd8_node$mean_cdr3_len <- as.numeric(clone_cdr3_len[as.character(cd8_node$clone_id)])
-
-cd8_edges <- createRepertoireEdgeDataframe(cd8_node)
-g_cd8     <- build_repertoire_tidygraph(cd8_node, cd8_edges)
-```
-
-### b. Render — nodes colored by mean CDR3 length
-
-`color_by = "mean_cdr3_len"` is a continuous variable, so the network is
-drawn with a perceptually uniform viridis ramp instead of the discrete
-compartment/patient palettes. Clones are still packed into CSF / PB bands.
-
-```{r cd8_plot, fig.height=6, fig.width=8}
-p_cd8 <- plot_repertoire_network(
-  g_cd8,
-  color_by    = "mean_cdr3_len",
-  layout      = "grouped",
-  layout_args = list(aspect = 1.6, band_fill = 0.92, band_gap = 0.10),
-  edge_alpha  = 0.15,
-  edge_width  = 0.20,
-  size_range  = c(0.9, 3.8),
-  label_top_n = 0,
-  band_labels = TRUE,
-  title       = "CD8 T cell repertoire — mean CDR3β length",
-  subtitle    = "Expanded CD8 clones, both patients; fill = mean CDR3β length (aa)",
-  seed        = seed.number
-)
-p_cd8
-```
-
-### c. Save vector PDF + 300-DPI PNG
-
-```{r cd8_pdf, eval=FALSE}
-save_pub_figure(p_cd8,
-                file_basename = file.path(fig_dir, "Fig3_CD8_CDR3_length"),
-                width_class   = "1.5",
-                height_mm     = 110,
-                also_png      = TRUE)
-```
 
 ### -----------------------------
 
-# 5. GLIPH motif network (Figure 4)
+# 4. GLIPH motif network (Figure 4)
 
 GLIPH2 groups TCRs by shared CDR3 motifs that putatively bind the same
 antigen. Here we re-render the GLIPH network with proper labels on the motif
@@ -540,151 +473,16 @@ p_gliph
 
 ```{r gliph_pdf, eval=FALSE}
 save_pub_figure(p_gliph,
-                file_basename = file.path(fig_dir, "Fig4_GLIPH_motif_network"),
+                file_basename = file.path(fig_dir, "GLIPH_motif_TCR_network"),
                 width_class   = "double",
                 height_mm     = 120,
                 also_png      = TRUE)
 ```
 
-### -----------------------------
-
-# 6. V-J gene pairing chord diagrams (Figure 5)
-
-A chord diagram shows which V genes pair with which J genes at what frequency,
-making compartment- or status-specific biases visually obvious. We render one
-per (cell type, compartment) cell.
-
-### a. TCR beta V-J pairing — Disease CSF vs PB
-
-```{r vj_tcr_chord, fig.height=4, fig.width=8}
-tcr_beta <- tcr_df[tcr_df$locus %in% "TRB" & tcr_df$patient %in% "28", ]
-tcr_beta_csf <- tcr_beta[tcr_beta$COMPARTMENT %in% "CSF", ]
-tcr_beta_pb  <- tcr_beta[tcr_beta$COMPARTMENT %in% "PB",  ]
-
-par(mfrow = c(1, 2))
-plot_vj_chord(tcr_beta_csf, top_v = 12, top_j = 8,
-              v_color = pub_palettes$compartment[["CSF"]],
-              j_color = pub_palettes$compartment[["PB"]],
-              title = "Disease CSF TCR-β V-J pairing")
-plot_vj_chord(tcr_beta_pb,  top_v = 12, top_j = 8,
-              v_color = pub_palettes$compartment[["CSF"]],
-              j_color = pub_palettes$compartment[["PB"]],
-              title = "Disease PB  TCR-β V-J pairing")
-par(mfrow = c(1, 1))
-```
-
-### b. Save vector PDFs
-
-```{r vj_chord_pdf, eval=FALSE}
-plot_vj_chord(tcr_beta_csf, top_v = 12, top_j = 8,
-              pdf_out = file.path(fig_dir, "Fig5a_VJ_TRB_CSF.pdf"),
-              title = "Disease CSF TCR-β V-J pairing")
-plot_vj_chord(tcr_beta_pb,  top_v = 12, top_j = 8,
-              pdf_out = file.path(fig_dir, "Fig5b_VJ_TRB_PB.pdf"),
-              title = "Disease PB  TCR-β V-J pairing")
-```
-
-### c. BCR heavy-chain V-J pairing
-
-```{r vj_bcr_chord, fig.height=4, fig.width=8}
-bcr_heavy_dis <- bcr_df[bcr_df$locus %in% "IGH" & bcr_df$patient %in% "28", ]
-
-par(mfrow = c(1, 2))
-plot_vj_chord(bcr_heavy_dis[bcr_heavy_dis$COMPARTMENT %in% "CSF", ],
-              top_v = 15, top_j = 6, title = "Disease CSF IGH V-J pairing")
-plot_vj_chord(bcr_heavy_dis[bcr_heavy_dis$COMPARTMENT %in% "PB", ],
-              top_v = 15, top_j = 6, title = "Disease PB  IGH V-J pairing")
-par(mfrow = c(1, 1))
-```
 
 ### -----------------------------
 
-# 7. Clone-size rank distribution (Figure 6)
-
-A Zipf-style log-log plot of clone rank vs clone size. A straight line of
-slope ≈ -1 signals a power-law repertoire (typical of antigen-experienced T
-cells). The disease CSF should sit visibly higher and flatter than healthy.
-
-### a. Per-compartment, per-patient
-
-```{r rank_curves, fig.height=4, fig.width=10}
-# Build a per-(patient × compartment) long table of clone sizes. Each row is
-# one clone within a (patient, compartment) group; the cell_count column is
-# the number of distinct cells supporting that clone in that group.
-clone_counts_long <- tcr_df %>%
-  dplyr::distinct(unique_cell_id, clone_id, patient, COMPARTMENT) %>%
-  dplyr::group_by(patient, COMPARTMENT, clone_id) %>%
-  dplyr::summarize(cell_count = dplyr::n_distinct(unique_cell_id),
-                   .groups = "drop") %>%
-  dplyr::mutate(group = paste(patient, COMPARTMENT, sep = "_"))
-
-# Color: blue family = disease, orange family = healthy
-group_pal <- c(`28_CSF` = "#08306B", `28_PB` = "#6BAED6",
-               `32_CSF` = "#7F2704", `32_PB` = "#FDAE6B")
-
-p_rank <- plot_clone_rank(
-  clone_count_df = clone_counts_long,
-  group_col      = "group",
-  count_col      = "cell_count",
-  color_pal      = group_pal,
-  min_count      = 1,
-  title          = "TCR clone-size rank distribution",
-  subtitle       = "Zipf-style log-log; disease CSF clones flatter & higher than PB"
-)
-p_rank
-```
-
-```{r rank_pdf, eval=FALSE}
-save_pub_figure(p_rank,
-                file_basename = file.path(fig_dir, "Fig6_TCR_rank_distribution"),
-                width_class   = "1.5", height_mm = 80, also_png = TRUE)
-```
-
-### -----------------------------
-
-# 8. Hill diversity profiles (Figure 7)
-
-Hill numbers (q-D) interpolate smoothly from clone richness (q=0) through
-Shannon (q=1) to Simpson (q=2) and beyond. A diversity profile is the most
-informative single-panel summary of repertoire structure, and is preferred
-over a single index in current immunology papers.
-
-```{r hill, fig.height=4, fig.width=10}
-# Build a per-(patient × compartment) group column in tcr_df / bcr_df
-tcr_df$group <- paste(tcr_df$patient, tcr_df$COMPARTMENT, sep = "_")
-bcr_df$group <- paste(bcr_df$patient, bcr_df$COMPARTMENT, sep = "_")
-
-p_hill_tcr <- plot_hill_diversity(
-  tcr_df[tcr_df$locus %in% "TRB", ],
-  group_col = "group", color_pal = group_pal,
-  nboot     = 100,
-  title     = "TCR-β Hill diversity",
-  subtitle  = "Bootstrap 95% CI; q=0 richness → q=4 dominance"
-)
-
-p_hill_bcr <- plot_hill_diversity(
-  bcr_df[bcr_df$locus %in% "IGH", ],
-  group_col = "group", color_pal = group_pal,
-  nboot     = 100,
-  title     = "BCR-heavy Hill diversity",
-  subtitle  = "Bootstrap 95% CI; q=0 richness → q=4 dominance"
-)
-
-fig_hill <- (p_hill_tcr | p_hill_bcr) +
-  plot_annotation(tag_levels = "a") +
-  plot_layout(guides = "collect")
-fig_hill
-```
-
-```{r hill_pdf, eval=FALSE}
-save_pub_figure(fig_hill,
-                file_basename = file.path(fig_dir, "Fig7_Hill_diversity"),
-                width_class   = "double", height_mm = 85, also_png = TRUE)
-```
-
-### -----------------------------
-
-# 9. Session info
+# Session info
 
 ```{r session_info}
 sessionInfo()
