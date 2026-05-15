@@ -14,9 +14,8 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
   │   ├── 1_filter_rnaseq_and_vdj_data.Rmd
   │   ├── 2_scrnaseq_analysis.Rmd
   │   ├── 3_repertoire_analysis.Rmd
-  │   ├── 3b_bonus_repertoire_exercises.Rmd   (NEW — extra exercises)
   │   ├── 4_find_candidates.Rmd
-  │   └── 5_publication_vdj_networks.Rmd      (NEW — publication-quality figures)
+  │   └── 5_vibe_vdj_networks.Rmd (optional)
   │
   ├── 4_FindCandidates
   │   └── all_CSF_GLIPH2
@@ -24,34 +23,16 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
   │   ├── input_immcantation
   │   ├── results_immcantation
   │   └── input_antigen_discovery
-  ├── figures                                  (created by script 5)
+  ├── figures
   ├── objects
   └── resources
       ├── functions_workshop.R
-      └── functions_pub_networks.R             (NEW — ggraph/circlize helpers)
+      └── functions_pub_networks.R
 ```
-
-### New material (2026 refresh)
-
-* **`3b_bonus_repertoire_exercises.Rmd`** — seven additional exercises that
-  extend `3_repertoire_analysis.Rmd`: CDR3 physicochemical properties
-  (hydrophobicity, charge), public-vs-private clonotypes, compartment overlap
-  with Morisita-Horn and Jaccard indices, V-gene-stratified spectratypes, a
-  clone-level CSF-enrichment volcano, BCR isotype-switching summary, and
-  expanded-vs-unexpanded gene-module scoring (effector, exhaustion, Trm).
-* **`5_publication_vdj_networks.Rmd`** — rebuilds the BCR/TCR/GLIPH networks
-  using `tidygraph` + `ggraph` with a colorblind-safe Okabe-Ito palette,
-  proper legends, multi-panel composition via `patchwork`, V-J pairing chord
-  diagrams (`circlize`), Zipf-style clone-size rank distributions, and Hill
-  diversity profiles with bootstrap 95% CIs. All figures save as vector PDFs
-  at journal column widths (85 / 115 / 180 mm) via `cairo_pdf`.
-* **`resources/functions_pub_networks.R`** — shared helpers (palettes,
-  themes, `build_repertoire_tidygraph`, `plot_repertoire_network`,
-  `plot_vj_chord`, `plot_clone_rank`, `plot_hill_diversity`, `save_pub_figure`).
 
 ## Dependencies
 
-This workshop uses **R v4.5.0** and packages installed with **Bioconductor 3.21**. Install instructions for all required R packages and software is provided on Box. 
+This workshop uses **R v4.6.0** and packages installed with **Bioconductor 3.24 or 3.23**. Install instructions for all required R packages and software is provided on Box. 
 
 **CRAN R packages to install:**
 ```{r}
@@ -108,7 +89,6 @@ if (!require("BiocManager", quietly = TRUE))
 
 BiocManager::install("scRepertoire")
 BiocManager::install("SingleCellExperiment")
-BiocManager::install("scrapper")
 BiocManager::install("SingleR")
 BiocManager::install("celldex")
 BiocManager::install("Biostrings")
@@ -120,10 +100,12 @@ BiocManager::install("DOSE")
 BiocManager::install("clusterProfiler")
 ```
 
-**Install Seurat version 5.2.1 to avoid errors with cell type annotations**
+**Install an older version of Signac to avoid errors with Azimuth installation**
 ```{r}
 library(remotes)
-remotes::install_github("satijalab/seurat", ref = "v5.2.1")
+remove.packages("Signac")
+remotes::install_version("Signac", version = "1.12.0")
+remotes::install_github("satijalab/azimuth", ref = "master")
 ```
 
 **Github repos to install:**
