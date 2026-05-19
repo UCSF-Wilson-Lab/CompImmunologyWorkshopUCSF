@@ -32,7 +32,20 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
 
 ## Dependencies
 
-This workshop uses **R v4.6.0** and packages installed with **Bioconductor 3.24 or 3.23**. Install instructions for all required R packages and software is provided on Box. 
+This workshop uses **R v4.6.0** and packages installed with **Bioconductor 3.24**. Install instructions for all required R packages and software is provided on Box. In addition, Openssl and GFortran need to be installed. If the below instructions don't work, Hombrew (**brew install**) can also be used to to install Openssl. This option takes extra steps in terms of configuring paths. 
+
+**Install Openssl in command line for dependencies such as alabastar.base** 
+```{bash}
+sudo R
+source("https://mac.R-project.org/bin/install.R")
+install.libs("openssl")
+q()
+```
+
+**Install GFortran by downloading the file for your relevant OS**
+
+* Website for all installs [here](https://fortran-lang.org/learn/os_setup/install_gfortran/)
+* Mac OS install [here](https://github.com/fxcoudert/gfortran-for-macOS/releases)
 
 **CRAN R packages to install:**
 ```{r}
