@@ -1,0 +1,57 @@
+How to install GFortran and Openssl
+==================================
+
+### GFortran Install ###
+
+### Main Solution:
+#   - download from the website (https://fortran-lang.org/learn/os_setup/install_gfortran/)
+
+### If that install doesn't work well, install with Homebrew instead
+brew install gcc
+
+#-------------------------------------------------#
+
+### OpenSSL Install ###
+
+### Main solution: Run in terminal
+sudo R
+source("https://mac.R-project.org/bin/install.R")
+install.libs("openssl")
+q()
+
+
+### If the above install doesn't work use Homebrew
+brew install gsl openssl@3
+
+#-------------------------------------------------#
+
+### Custom Fix if paths to these tools are not detectable while installing dependencies ###
+#   - This is a solution for Mac OS 
+
+mkdir -p ~/.R
+
+# Capture the actual OpenSSL and gfortran paths on your machine
+OPENSSL_PREFIX="$(brew --prefix openssl@3)"
+GFORTRAN_BIN="$(command -v gfortran || true)"
+
+if [ -z "$GFORTRAN_BIN" ]; then
+  echo "gfortran is not on PATH."
+  echo "Install the current GNU Fortran package for macOS from the R tools page, then rerun."
+  exit 1
+fi
+
+GFORTRAN_LIBDIR="$(dirname "$("$GFORTRAN_BIN" -print-file-name=libgfortran.dylib)")"
+
+# Makevars config
+cat > ~/.R/Makevars <<EOF
+OPENSSL_PREFIX := ${OPENSSL_PREFIX}
+PKG_CPPFLAGS += -I\$(OPENSSL_PREFIX)/include
+PKG_LIBS += -L\$(OPENSSL_PREFIX)/lib
+
+FC := ${GFORTRAN_BIN}
+F77 := ${GFORTRAN_BIN}
+FLIBS := -L${GFORTRAN_LIBDIR} -lgfortran -lquadmath -lemutls_w -lheapt_w
+EOF
+
+# Remove any bad flags from the current shell session
+unset LDFLAGS FLIBS CPPFLAGS PKG_LIBS
