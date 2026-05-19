@@ -1,0 +1,12 @@
+How to install Openssl
+======================
+
+### Main solution: Run in terminal
+sudo R
+source("https://mac.R-project.org/bin/install.R")
+install.libs("openssl")
+q()
+
+
+### If the above install doesn't work use Homebrew
+brew install gsl openssl@3

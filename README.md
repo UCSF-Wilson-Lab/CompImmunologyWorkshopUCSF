@@ -42,10 +42,24 @@ install.libs("openssl")
 q()
 ```
 
+```{bash}
+# If dependencies are still failing to install because of openssl, then use homebrew
+brew install gsl openssl@3
+```
+
 **Install GFortran by downloading the file for your relevant OS**
 
 * Website for all installs [here](https://fortran-lang.org/learn/os_setup/install_gfortran/)
 * Mac OS install for **gfortran 14.2** [here](https://github.com/fxcoudert/gfortran-for-macOS/releases)
+* if this install doesn't work in harmony with openssl for installing R package dependencies, try re-installing with homebrew
+```{bash}
+brew install gcc openssl@3
+
+# Or if you already have gfortran re-install it with homebrew then do openssl
+brew reinstall gcc
+brew install gsl openssl@3
+```
+
 
 **CRAN R packages to install:**
 ```{r}
