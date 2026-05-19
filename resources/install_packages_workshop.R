@@ -1,6 +1,8 @@
 # BMS 270 - Immune Repertoire Workshop
 #  - Most updated documentation is on github (https://github.com/UCSF-Wilson-Lab/CompImmunologyWorkshopUCSF)
 
+## Set up gfortran and openssl before installing the Bioconductor specific packages
+
 # CRAN R packages
 install.packages("Seurat")
 install.packages("kableExtra")
@@ -35,6 +37,7 @@ install.packages("patchwork")
 # Bioconductor R packages
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
+BiocManager::install(version = "devel")
 
 BiocManager::install("scRepertoire")
 BiocManager::install("SingleCellExperiment")

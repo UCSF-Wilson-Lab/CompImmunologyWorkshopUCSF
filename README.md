@@ -32,7 +32,7 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
 
 ## Dependencies
 
-This workshop uses **R v4.6.0** and packages installed with **Bioconductor 3.24**. Install instructions for all required R packages and software is provided on Box. In addition, Openssl and GFortran need to be installed. If the below instructions don't work, Hombrew (**brew install**) can also be used to to install Openssl. This option takes extra steps in terms of configuring paths. 
+This workshop uses **R v4.6.0** and packages installed with **Bioconductor 3.24 (bioc-devel version)**. Install instructions for all required R packages and software is provided on Box. In addition, Openssl and GFortran need to be installed. If the below instructions don't work, Hombrew (**brew install**) can also be used to to install Openssl. This option takes extra steps in terms of configuring paths. 
 
 **Install GFortran by downloading the file for your relevant OS**
 
