@@ -136,6 +136,10 @@ tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "y
 
 ### a. make dataframe of all VDJ cells and its overlaps
 ```{r}
+# Compartment
+bcr_df$COMPARTMENT <- tstrsplit(bcr_df$unique_cell_id,"_")[[2]]
+tcr_df$COMPARTMENT <- tstrsplit(tcr_df$unique_cell_id,"_")[[2]]
+
 overlap_df_bcr <- bcr_df[bcr_df$locus %in% "IGH",c("unique_cell_id","COMPARTMENT")]
 overlap_df_tcr <- tcr_df[tcr_df$locus %in% "TRB",c("unique_cell_id","COMPARTMENT")]
 
@@ -163,7 +167,7 @@ merged_df$TCR_status <- ifelse(
 
 # Optional: combined classification
 merged_df$cell_status <- dplyr::case_when(
-  !is.na(merged_df$COMPARTMENT_bcr) & !is.na(merged_df$COMPARTMENT_tcr) ~ "Both",
+  !is.na(merged_df$COMPARTMENT_bcr) & !is.na(merged_df$COMPARTMENT_tcr) ~ "TCR_and_BCR",
   !is.na(merged_df$COMPARTMENT_bcr) ~ "BCR_only",
   !is.na(merged_df$COMPARTMENT_tcr) ~ "TCR_only",
   TRUE ~ "Neither"
@@ -189,7 +193,7 @@ sample_colors <- c(
 merged_df <- merged_df %>%
   mutate(
     cell_class = factor(
-      cell_class,
+      cell_status,
       levels = c("TCR_only", "BCR_only", "TCR_and_BCR")
     ),
     sample = factor(
