@@ -45,7 +45,7 @@ q()
 **Install GFortran by downloading the file for your relevant OS**
 
 * Website for all installs [here](https://fortran-lang.org/learn/os_setup/install_gfortran/)
-* Mac OS install [here](https://github.com/fxcoudert/gfortran-for-macOS/releases)
+* Mac OS install for **gfortran 14.2** [here](https://github.com/fxcoudert/gfortran-for-macOS/releases)
 
 **CRAN R packages to install:**
 ```{r}
