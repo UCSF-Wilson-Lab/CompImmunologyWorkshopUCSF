@@ -34,6 +34,15 @@ This codebase covers an analysis of single cell RNA-Seq and VDJ data as part of 
 
 This workshop uses **R v4.6.0** and packages installed with **Bioconductor 3.24**. Install instructions for all required R packages and software is provided on Box. In addition, Openssl and GFortran need to be installed. If the below instructions don't work, Hombrew (**brew install**) can also be used to to install Openssl. This option takes extra steps in terms of configuring paths. 
 
+**Install GFortran by downloading the file for your relevant OS**
+
+* Website for all installs [here](https://fortran-lang.org/learn/os_setup/install_gfortran/)
+* Mac OS install for **gfortran 14.2** [here](https://github.com/fxcoudert/gfortran-for-macOS/releases)
+* If downloading and installing is not working well, you can install with homebrew instead
+```{bash}
+brew install gcc
+```
+
 **Install Openssl in command line for dependencies such as alabastar.base** 
 ```{bash}
 sudo R
@@ -47,17 +56,36 @@ q()
 brew install gsl openssl@3
 ```
 
-**Install GFortran by downloading the file for your relevant OS**
-
-* Website for all installs [here](https://fortran-lang.org/learn/os_setup/install_gfortran/)
-* Mac OS install for **gfortran 14.2** [here](https://github.com/fxcoudert/gfortran-for-macOS/releases)
-* if this install doesn't work in harmony with openssl for installing R package dependencies, try re-installing with homebrew
+* if openssl and or gfortran paths are not being detected while installing R package dependencies, try configuring the paths (Mac OS solution)
 ```{bash}
-brew install gcc openssl@3
+# Only run this if other solutions are not working
+mkdir -p ~/.R
 
-# Or if you already have gfortran re-install it with homebrew then do openssl
-brew reinstall gcc
-brew install gsl openssl@3
+# Capture the actual OpenSSL and gfortran paths on your machine
+OPENSSL_PREFIX="$(brew --prefix openssl@3)"
+GFORTRAN_BIN="$(command -v gfortran || true)"
+
+if [ -z "$GFORTRAN_BIN" ]; then
+  echo "gfortran is not on PATH."
+  echo "Install the current GNU Fortran package for macOS from the R tools page, then rerun."
+  exit 1
+fi
+
+GFORTRAN_LIBDIR="$(dirname "$("$GFORTRAN_BIN" -print-file-name=libgfortran.dylib)")"
+
+# Makevars config
+cat > ~/.R/Makevars <<EOF
+OPENSSL_PREFIX := ${OPENSSL_PREFIX}
+PKG_CPPFLAGS += -I\$(OPENSSL_PREFIX)/include
+PKG_LIBS += -L\$(OPENSSL_PREFIX)/lib
+
+FC := ${GFORTRAN_BIN}
+F77 := ${GFORTRAN_BIN}
+FLIBS := -L${GFORTRAN_LIBDIR} -lgfortran -lquadmath -lemutls_w -lheapt_w
+EOF
+
+# Remove any bad flags from the current shell session
+unset LDFLAGS FLIBS CPPFLAGS PKG_LIBS
 ```
 
 
