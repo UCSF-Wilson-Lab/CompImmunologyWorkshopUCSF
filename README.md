@@ -138,10 +138,15 @@ install.packages(c("tidygraph",
 ```
 
 **Bioconductor R Packages to install:**
+
 ```{r}
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
+BiocManager::install(version = "devel")
+BiocManager::valid()
+```
 
+```{r}
 BiocManager::install("scRepertoire")
 BiocManager::install("SingleCellExperiment")
 BiocManager::install("SingleR")
