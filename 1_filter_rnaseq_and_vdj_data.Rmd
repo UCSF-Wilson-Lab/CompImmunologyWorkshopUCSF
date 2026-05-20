@@ -132,9 +132,10 @@ bcr_df[bcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "y
 tcr_df[tcr_df$unique_cell_id %in% overlapping_cells,"cell_overlap_status"] <- "yes"
 ```
 
-# 4. Show overlap for TCR and BCR 
+# 4. Show overlap for TCR and BCR
 
 ### a. make dataframe of all VDJ cells and its overlaps
+
 ```{r}
 # Compartment
 bcr_df$COMPARTMENT <- tstrsplit(bcr_df$unique_cell_id,"_")[[2]]
@@ -180,6 +181,7 @@ merged_df$sample <- tstrsplit(merged_df$unique_cell_id,"-")[[2]]
 ```
 
 ### b. barplots of overlaps
+
 ```{r}
 # Define muted publication-style colors
 sample_colors <- c(
@@ -255,7 +257,6 @@ p_all
 p_rnaseq
 ```
 
-
 # 5. Plot cell before and after VDJ filter
 
 ### a. SingleR annotations pre and post VDJ filter
@@ -330,7 +331,7 @@ rnaseq_obj <- scaleAndClusterSeuratObject(rnaseq_obj,dims = 1:6,npca = 5,resolut
 p3_reclustered_singler <- DimPlot(object = rnaseq_obj, group.by="main_bencode", pt.size=1.0, label.size = 5,label = T,reduction = "umap")
 p4_reclustered_singler <- DimPlot(object = rnaseq_obj, group.by="fine_bencode", pt.size=1.0,label.size = 5, label = T,reduction = "umap")
 
-plot_grid(p3_reclustered_singler,p4_reclustered_singler,ncol = 2)
+plot_grid(p2_post_filter_singler,p4_reclustered_singler,ncol = 2)
 ```
 
 ### b. Azimuth
@@ -339,7 +340,7 @@ plot_grid(p3_reclustered_singler,p4_reclustered_singler,ncol = 2)
 p3_reclustered_azimuth <- DimPlot(object = rnaseq_obj, group.by="predicted.celltype.l1", pt.size=1.0, label.size = 5,label = T,reduction = "umap")
 p4_reclustered_azimuth <- DimPlot(object = rnaseq_obj, group.by="predicted.celltype.l2", pt.size=1.0,label.size = 5, label = T,reduction = "umap")
 
-plot_grid(p3_reclustered_azimuth,p4_reclustered_azimuth,ncol = 2)
+plot_grid(p2_post_filter_azimuth,p4_reclustered_azimuth,ncol = 2)
 ```
 
 ### ---------------
@@ -544,7 +545,6 @@ for (subtype in unique(subtype_annotations_bcr$sub.celltype.annot)) {
 bcr_df$SUBTYPE_ANNOTATION <- bcell_annotation_col
 ```
 
-
 ### ---------------
 
 # Defining Expanded populations
@@ -600,7 +600,7 @@ rnaseq_obj$expansion_category <- expansion_categ_col
 
 # 2. Look at proportions
 
-### a. subset B cells
+### a. subset B cell and T cell objects
 
 ```{r}
 # add column for Diagnosis + Subtype & Diagnois + Compartment
@@ -625,14 +625,13 @@ p13 <- dittoBarPlot(bcell_obj, "sub.celltype.annot", group.by = "status.compartm
 plot_grid(p12,p13,nrow=2,align = "v")
 ```
 
-
 ### c. clonotype expansion breakdown
 
 - Expanded T cell populations are observed in all compartments, while expanded B cells show more restriction
 
 ```{r fig.height=6, fig.width=7, warning=FALSE}
-p14 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells")
-p15 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells")
+p14 <- dittoBarPlot(tcell_obj, "expansion_category", group.by = "status.compartment", main = "T cells",color.panel = dittoColors()[1:3])
+p15 <- dittoBarPlot(bcell_obj, "expansion_category", group.by = "status.compartment", main = "B cells",color.panel = dittoColors()[2:3])
 
 grid.arrange(p14,p15,nrow=2)
 ```
@@ -644,6 +643,7 @@ grid.arrange(p14,p15,nrow=2)
 # 1. Map misannotated T cells
 
 ### a. make ref and query objects
+
 ```{r}
 MAIN_TCELL_ANNOT <- c("CD4 T","CD8 T","other T")
 
@@ -652,11 +652,12 @@ cell_ref_tcells <- names(tcell_obj$predicted.celltype.l1[tcell_obj$predicted.cel
 
 tcell_ref_obj <- tcell_obj[,colnames(tcell_obj) %in% cell_ref_tcells]
 
-## Query of non-AE T cells
+## Query of non T cells
 t_query_obj <- tcell_obj[,! colnames(tcell_obj) %in% cell_ref_tcells]
 ```
 
 ### b. re-normalize reference and query
+
 ```{r}
 # Keep the trusted labels in the reference
 tcell_ref_obj$tcell_ref_label <- tcell_ref_obj$predicted.celltype.l1
@@ -673,6 +674,7 @@ tcell_ref_obj <- RunUMAP(tcell_ref_obj, dims = 1:30, reduction = "pca",return.mo
 ```
 
 ### c. find anchors
+
 ```{r}
 # mis-annotated cells
 anchors <- FindTransferAnchors(
@@ -685,6 +687,7 @@ anchors <- FindTransferAnchors(
 ```
 
 ### d. map annotation onto query
+
 ```{r}
 t_query_obj <- MapQuery(
   anchorset = anchors,
@@ -698,14 +701,15 @@ t_query_obj <- MapQuery(
 
 # 2. Extract updated annotations
 
-* optionally after completing the annotations, you could refine CD4/CD8 based on whether there is CD8 expression in GEX and CSP
+- optionally after completing the annotations, you could refine CD4/CD8 based on whether there is CD8 expression in GEX and CSP
+
 ```{r}
 new_query_annot_df <- t_query_obj@meta.data[,c("predicted.celltype.l1","predicted.mapped_tcell_label","predicted.mapped_tcell_label.score")]
 ```
 
 # 3. Update annotations
 
-- Even after going through these steps we can see 
+- Even after going through these steps we can see
 
 ```{r}
 new_col_annot <- tcell_obj$predicted.celltype.l1
@@ -720,7 +724,6 @@ tcell_obj$azimuth_updated_celltype_l1 <- new_col_annot
 
 annot_compare_df <- tcell_obj@meta.data[,c("predicted.celltype.l1", "azimuth_updated_celltype_l1","sub.celltype.annot")]
 ```
-
 
 ### ---------------
 

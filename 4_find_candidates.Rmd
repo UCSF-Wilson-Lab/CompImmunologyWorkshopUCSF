@@ -138,13 +138,13 @@ bcr_hc_net                 <- formatIgraphNetwork(bcr_hc_net)
   - layout_with_kk
   - layout_with_lgl
 
-  ```{r}
+```{r}
   set.seed(seed.number)
 
   par(mfrow=c(1,2))
   plot(bcr_net,layout = layout_with_kk, main = "BCR - Disease Patient")
   plot(bcr_hc_net,layout = layout_with_kk, main = "BCR - Healthy Patient")
-  ```
+```
 
 ### d. Write GML file
 
@@ -205,13 +205,13 @@ tcr_hc_net                 <- formatIgraphNetwork(tcr_hc_net,extra.size = F,edge
   - layout_with_lgl
   - layout_with_fr
 
-  ```{r}
+```{r}
   set.seed(seed.number)
 
   par(mfrow=c(1,2))
   plot(tcr_net,layout = layout_with_fr, main = "TCR - Disease Patient")
   plot(tcr_hc_net,layout = layout_with_fr, main = "TCR - Healthy Patient")
-  ```
+```
 
 ### d. Write GML file
 
@@ -700,7 +700,6 @@ target_tcr_df$tcr_seq <- str_replace_all(target_tcr_df$tcr_seq,"\\.","")
 target_tcr_df_sub <- target_tcr_df[,c("unique_cell_id","locus","v_call","d_call","j_call","clone_id","tcr_seq")]
 ```
 
-
 ### -----------------------------
 
 # BONUS - Finding Canditate Antigens
@@ -727,6 +726,8 @@ df_vir_log <- log10(df_vir + 1)
 ```
 
 # 2. Identify highly enriched autoantigens targeted by mAbs
+
+- experimental controls for mAbs help to eliminate antigens (phage) that bind to the antibody backbone
 
 ### a. mAb1 filter for highly enriched peptides
 

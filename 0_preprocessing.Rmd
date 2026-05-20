@@ -102,7 +102,7 @@ seurat.obj@meta.data$sample <- sample_col
 ```{r}
 set.seed(seed.number)
 
-seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 15)
+seurat.obj <- findDoublets(seurat.obj,sample.col = "sample",threads = 8)
 
 # Omit Doublets 
 cells_to_keep  <- names(seurat.obj$doublet_finder[seurat.obj$doublet_finder %in% "Singlet"])

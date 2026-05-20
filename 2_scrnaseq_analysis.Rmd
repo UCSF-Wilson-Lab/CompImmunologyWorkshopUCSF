@@ -8,8 +8,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Prior to running this code:
-* Before starting set working directory to the CompImmunologyWorkshopUCSF folder
-  * setwd("[PATH]/CompImmunologyWorkshopUCSF")
+
+- Before starting set working directory to the CompImmunologyWorkshopUCSF folder
+  - setwd("[PATH]/CompImmunologyWorkshopUCSF")
 
 ```{r,warning=FALSE,message=FALSE}
 # Set Working Directory before starting
@@ -42,8 +43,8 @@ suppressPackageStartupMessages(library(dreamlet))
 source("resources/functions_workshop.R")
 ```
 
-
 # 1. Load Processed Objects
+
 ```{r}
 load("objects/processed_objects.RData")
 
@@ -52,13 +53,13 @@ tcell_obj <- PrepSCTFindMarkers(tcell_obj)
 bcell_obj <- PrepSCTFindMarkers(bcell_obj)
 ```
 
-
 # 2. Subset Disease Objects
 
 ### a. subset B and T cells
 
-* Combine Moderate and High into Expanded to set up comparing Expanded vs Non-expanded clonotypes
-* There are far more T cells compared to B cells, which allows us to do a CSF only analysis for T cells, but not B cells
+- Combine Moderate and High into Expanded to set up comparing Expanded vs Non-expanded clonotypes
+- There are far more T cells compared to B cells, which allows us to do a CSF only analysis for T cells, but not B cells
+
 ```{r}
 # T cell CSF object
 tcell_obj_csf <- tcell_obj[,names(tcell_obj$status[tcell_obj$status %in% "Disease"])]
@@ -75,10 +76,12 @@ bcell_obj_csfpb$expansion.subtype <- paste(bcell_obj_csfpb$expansion_category,bc
 
 ### b. B cell gene usage (heatmap)
 
-* With RNA-Seq alone, it is hard to separate out clonotypes
+- With RNA-Seq alone, it is hard to separate out clonotypes
 
 #### V genes
-* There is some indication that cells with the same V genes group together, but the patterns are hard to distinguish
+
+- There is some indication that cells with the same V genes group together, but the patterns are hard to distinguish
+
 ```{r,fig.height=7,fig.width=10}
 genes_bcells             <- row.names(bcell_obj_csfpb)
 vgenes_bcells            <- sort(genes_bcells[grep("IGHV",genes_bcells)])
@@ -94,8 +97,10 @@ h1 <- dittoHeatmap(bcell_obj_csfpb, genes = vgenes_bcells,
 ```
 
 #### Other Ig genes
-* Elevated IgM expression among B cells
-* There is some level of grouping of CSF cells with IgA1 and IgG 
+
+- Elevated IgM expression among B cells
+- There is some level of grouping of CSF cells with IgA1 and IgG
+
 ```{r,fig.height=5,fig.width=10}
 genes_bcells             <- row.names(bcell_obj_csfpb)
 other_ig_genes_bcells    <- sort(genes_bcells[grep("IGHA|IGHG|IGHM|IGHD",genes_bcells)])
@@ -110,14 +115,13 @@ h2 <- dittoHeatmap(bcell_obj_csfpb, genes = other_ig_genes_bcells,
 
 ```
 
-
-
 # 3. Differential Gene Expression (DGE) CSF vs PBMC
 
-* In this section we are using the standard DGE tools in Seurat
-* For more complex analyses, it is worth exploring the **dreamlet** R package which implements pseudobulk analyses
+- In this section we are using the standard DGE tools in Seurat
+- For more complex analyses, it is worth exploring the **dreamlet** R package which implements pseudobulk analyses
 
 ### a. B cells - CSF vs. PB
+
 ```{r}
 TOP_N <- 100
 
@@ -130,8 +134,8 @@ dge_compartment_bcells <- dge_compartment_bcells_all[dge_compartment_bcells_all$
 top_genes_bcells       <- dge_compartment_bcells %>% group_by(cluster) %>% top_n(TOP_N, avg_log2FC)
 ```
 
-
 ### b. Heatmaps - B cells
+
 ```{r,fig.height=6,fig.width=9,warning=FALSE}
 Idents(bcell_obj) <- bcell_obj$compartment
 levels(bcell_obj) <- c("CSF","PB")
@@ -176,6 +180,7 @@ plot_volcano
 # 4. Pseudobulk analysis - Cells that overlap VDJ
 
 ### a. pseudobulk aggregation
+
 ```{r}
 # Seurat -> SingleCellExperiment
 sce <- as.SingleCellExperiment(rnaseq_obj)
@@ -197,6 +202,7 @@ pb <- aggregateToPseudoBulk(
 ```
 
 ### b. DGE
+
 ```{r}
 res.proc <- processAssays(pb, ~status + compartment, min.count = 1)
 res.dl <- dreamlet(res.proc, ~status + compartment)
@@ -205,6 +211,7 @@ coefNames(res.dl)
 ```
 
 ### c. Volcano panel
+
 ```{r}
 p1 <- plotVolcano(res.dl, coef = "compartmentCSF") +
   ggtitle("compartmentCSF\n(CSF vs PB)")
@@ -215,10 +222,10 @@ p2 <- plotVolcano(res.dl, coef = "statusDisease") +
 p1 + p2
 ```
 
-
 # 5. T cell DGE - Expanded vs Non-Expanded Clones
 
 ### a. run DGE on T cells Expanded vs. Non-expanded (CSF)
+
 ```{r echo=TRUE, fig.height=7, fig.width=8, warning=FALSE}
 TOP_N <- 12
 Idents(tcell_obj_csf) <- tcell_obj_csf$expansion.subtype
@@ -230,6 +237,7 @@ top_genes_tcells_csf <- dge_tcell_csf %>% group_by(cluster) %>% top_n(TOP_N, avg
 ```
 
 ### b. Dot plot of top expanded and non-expanded genes
+
 ```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=11 | fig.height=7 for workshop
 
@@ -237,6 +245,7 @@ DotPlot(object = tcell_obj_csf,features = unique(top_genes_tcells_csf$gene)) + t
 ```
 
 ### c. Dot plot of top expanded genes
+
 ```{r,fig.height=11, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=11 | fig.height=7 for workshop
 
@@ -246,10 +255,10 @@ top_expanded_tcells <- dge_tcell_csf[dge_tcell_csf$cluster %in% c("Expanded CD8 
 DotPlot(object = tcell_obj_csf,features = unique(top_expanded_tcells$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("T cells CSF Top Expanded Genes") + coord_flip()
 ```
 
-
 # 6. B cell DGE - Expanded vs Non-Expanded Clonotypes
 
 ### a. run DGE on B cells Expanded vs. Non-expanded (CSF and PB)
+
 ```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
 TOP_N <- 10
 Idents(bcell_obj_csfpb) <- bcell_obj_csfpb$expansion.subtype
@@ -267,7 +276,8 @@ top_genes_bcells_csfpb <- dge_bcell_csfpb %>% group_by(cluster) %>% top_n(TOP_N,
 
 ### b. Dot plot of top genes
 
-* Explore the top DE genes for different expanded populatations
+- Explore the top DE genes for different expanded populatations
+
 ```{r,fig.height=17, fig.width=8,echo=TRUE,warning=FALSE}
 # fig.height=17 | fig.height=9 for workshop
 
@@ -275,13 +285,13 @@ DotPlot(object = bcell_obj_csfpb,features = unique(top_genes_bcells_csfpb$gene))
 ```
 
 ### c. Dot plot of DE genes for one expanded B cell subtype
+
 ```{r,fig.height=10, fig.width=8,echo=TRUE,warning=FALSE}
 # table(dge_bcell_csfpb$cluster)
 top_expanded <- dge_bcell_csfpb[dge_bcell_csfpb$cluster %in% "Expanded B memory",]
 
 DotPlot(object = bcell_obj_csfpb,features = unique(top_expanded$gene)) + theme(axis.text.x = element_text(angle = 90, hjust=1)) + ggtitle("B cells CSF Expanded vs. Non-Expanded") + coord_flip()
 ```
-
 
 ### -------------
 
@@ -300,7 +310,8 @@ suppressPackageStartupMessages(library(ggupset))
 ```
 
 ### a. Expanded B cells
-```{r,fig.height=4, fig.width=7,echo=TRUE,warning=FALSE}
+
+```{r,fig.height=6, fig.width=7,echo=TRUE,warning=FALSE}
 # Most of the expression should be in the target cluster
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
@@ -335,9 +346,8 @@ bcell_pathways_df    <- as.data.frame(bcell_pathways)
 barplot(bcell_pathways, showCategory = 10)
 ```
 
-
-
 #### Network of Pathways and genes (DisGeNET database)
+
 ```{r,fig.height=6,fig.width=17,warning=FALSE}
 edo <- enrichDGN(as.list(de))
 de_fc_list <- sort(de_fc_list,decreasing = T)
@@ -354,8 +364,8 @@ p2_bcell <- heatplot(edox, foldChange=de_fc_list, showCategory=14)
 plot_grid(p1_bcell,p2_bcell,ncol = 2)
 ```
 
-
 ### b. T cells CSF CD8
+
 ```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
 # - pct.1 = proportion of expression of the gene within the target cluster group
 # - pct.2 = proportion of expression of the gene within everything outside the target cluster
@@ -389,12 +399,14 @@ barplot(tcell_pathways, showCategory=10)
 ```
 
 #### Network of genes shared between pathways
+
 ```{r,fig.height=5, fig.width=9,echo=TRUE,warning=FALSE}
 tcell_pathways_net <- pairwise_termsim(tcell_pathways,showCategory = 25)
 emapplot(tcell_pathways_net, showCategory = 25,layout = "kk")
 ```
 
 #### Network of Pathways and genes (DisGeNET database)
+
 ```{r,fig.height=7,fig.width=13}
 edo <- enrichDGN(as.list(de))
 de_fc_list <- sort(de_fc_list,decreasing = T)
@@ -410,5 +422,3 @@ p2_tcell <- heatplot(edox, foldChange=de_fc_list, showCategory=20)
 
 plot_grid(p1_tcell,p2_tcell,ncol = 2)
 ```
-
-

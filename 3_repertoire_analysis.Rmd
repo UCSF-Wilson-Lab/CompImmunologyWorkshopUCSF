@@ -258,7 +258,6 @@ p_scr6_kmer <- percentKmer(tcell_screp,
 p_scr6_kmer
 ```
 
-
 # 4. Shared clonotype scatter plots - TCR
 
 - Disease patient has an increased number of TCR clones that are PBMC or
@@ -373,6 +372,7 @@ plot(p1)
 ```
 
 # 1.5 CDR3 lengths
+
 ```{r}
 comp_pal       <- c(CSF = "#0072B2", PB = "#D55E00")
 
@@ -401,7 +401,6 @@ ggplot(spectra %>% dplyr::filter(v_gene %in% top_v),
        x = "CDR3 length (aa)", y = "Cell count", fill = "Compartment") +
   theme_pub()
 ```
-
 
 # 2. Rank diversity
 
@@ -546,6 +545,7 @@ plot_grid(g1,g2,nrow=2)
 # 4. C usage B cells
 
 ### a. general usage
+
 ```{r}
 bcr_results_igh_csf <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "CSF",]
 bcr_results_igh_pb  <- bcr_results_igh[bcr_results_igh$COMPARTMENT %in% "PB",]
@@ -584,10 +584,9 @@ g2 <- ggplot(cfamily_pb, aes(x=gene, y=clone_freq)) +
 plot_grid(g1,g2,nrow=2)
 ```
 
-### b. BCR isotype switching summary
+### b. BCR isotype proportioin summary
 
-- Class-switching from IgM/IgD to IgG/IgA/IgE is a marker of T-help-driven
-affinity maturation.
+- Proportions from IgM/IgD to IgG/IgA/IgE
 
 ```{r isotype_summary, fig.height=4.5, fig.width=10}
 status_pal     <- c(Healthy = "#009E73", Disease = "#CC79A7")
@@ -625,21 +624,7 @@ p_iso_bar <- ggplot(iso_summary,
        x = NULL, y = "Fraction of B cells", fill = "Class") +
   theme_pub()
 
-# Class-switched fraction = 1 - naive
-p_csw <- iso_summary %>%
-  dplyr::group_by(STATUS, COMPARTMENT) %>%
-  dplyr::summarize(class_switched_frac = sum(frac[class != "Naive (IgM/IgD)"]),
-                   .groups = "drop") %>%
-  ggplot(aes(x = COMPARTMENT, y = class_switched_frac, fill = STATUS)) +
-  geom_col(position = position_dodge(0.7), width = 0.6,
-           color = "grey20", linewidth = 0.3) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  scale_fill_manual(values = status_pal) +
-  labs(title = "Class-switched B cell fraction",
-       x = NULL, y = "Class-switched (%)", fill = "Status") +
-  theme_pub()
-
-(p_iso_bar | p_csw) + plot_layout(widths = c(2, 1))
+p_iso_bar
 ```
 
 # 5. B cell Alpha Diversity
@@ -899,5 +884,3 @@ plots = plotTrees(ExampleClones, tips="c_call")
 
 plots[[1]]
 ```
-
-
